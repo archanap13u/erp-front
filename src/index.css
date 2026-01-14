@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@source "./**/*.{ts,tsx}";
+
+:root {
+    --primary: #1b66ff;
+    --primary-light: #eef4ff;
+    --background: #f4f5f6;
+    --foreground: #1d2129;
+    --header-bg: #ffffff;
+    --sidebar-bg: #f4f5f6;
+    --card-bg: #ffffff;
+    --border-color: #d1d8dd;
+    --text-muted: #626161;
+    --radius: 4px;
+}
+
+body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    margin: 0;
+    padding: 0;
+}
+
+.frappe-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    transition: border-color 0.2s;
+}
+
+.frappe-card:hover {
+    border-color: #adb5bd;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: white;
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    font-weight: 500;
+}
+
+.sidebar-item {
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    color: #626161;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-item:hover {
+    background: #ebeef0;
+    color: var(--foreground);
+}
+
+.sidebar-item.active {
+    background: #ffffff;
+    color: var(--primary);
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.frappe-shadow {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
