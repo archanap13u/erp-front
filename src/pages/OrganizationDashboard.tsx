@@ -27,11 +27,13 @@ import {
     ChevronRight,
     GraduationCap,
     Pen,
-    Settings
+    Settings,
+    ClipboardList
 } from 'lucide-react';
 import Workspace from '../components/Workspace';
 import { Link } from 'react-router-dom';
-import CustomizationModal from '../components/CustomizationModal';
+import DepartmentModal from '../components/DepartmentModal';
+
 
 export default function OrganizationDashboard() {
     const [counts, setCounts] = useState<{ [key: string]: number }>({});
@@ -41,15 +43,21 @@ export default function OrganizationDashboard() {
     const [departments, setDepartments] = useState<any[]>([]);
     const [attendance, setAttendance] = useState<any[]>([]);
     const [designations, setDesignations] = useState<string[]>([]);
+    const [modalError, setModalError] = useState('');
     const [showDeptForm, setShowDeptForm] = useState(false);
     const [editingDept, setEditingDept] = useState<any>(null); // For customization
     const [newDept, setNewDept] = useState({ name: '', code: '', username: '', password: '', panelType: 'Generic', features: [] as string[] });
     const [updatingCreds, setUpdatingCreds] = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [rowInputs, setRowInputs] = useState<Record<string, { username?: string, password?: string, panelType?: string }>>({});
     const [customizingDept, setCustomizingDept] = useState<any | null>(null);
 
     const orgId = localStorage.getItem('organization_id');
+
+    useEffect(() => {
+        console.log('[DEBUG] errorMessage state changed:', errorMessage);
+    }, [errorMessage]);
 
     useEffect(() => {
         if (!orgId) return;
@@ -62,10 +70,12 @@ export default function OrganizationDashboard() {
                     fetch(`/api/resource/organization/${orgId}`),
                     fetch(`/api/resource/employee${query}`),
                     fetch(`/api/resource/department${query}`),
-                    fetch(`/api/resource/attendance${query}`)
+                    fetch(`/api/resource/attendance${query}`),
+                    fetch(`/api/resource/student${query}`),
+                    fetch(`/api/resource/studentapplicant${query}`)
                 ]);
 
-                const [jsonOrg, jsonEmp, jsonDept, jsonAtt] = await Promise.all(
+                const [jsonOrg, jsonEmp, jsonDept, jsonAtt, jsonStu, jsonApp] = await Promise.all(
                     responses.map(r => r.json())
                 );
 
@@ -80,7 +90,9 @@ export default function OrganizationDashboard() {
                 setCounts({
                     employee: jsonEmp.data?.length || 0,
                     department: jsonDept.data?.length || 0,
-                    attendance: jsonAtt.data?.length || 0
+                    attendance: jsonAtt.data?.length || 0,
+                    student: jsonStu.data?.length || 0,
+                    application: jsonApp.data?.length || 0
                 });
 
             } catch (e) {
@@ -95,49 +107,6 @@ export default function OrganizationDashboard() {
     const [deptDesignations, setDeptDesignations] = useState<string[]>(['Manager', 'Team Lead', 'Associate']); // Default suggestions
     const [desigInput, setDesigInput] = useState('');
 
-    const handleAddDept = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newDept.name || !newDept.code) return;
-
-        try {
-            const res = await fetch(`/api/resource/department?organizationId=${orgId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...newDept, organizationId: orgId })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                const newDeptId = data.data._id;
-
-                // Create Designations
-                if (deptDesignations.length > 0 && newDeptId) {
-                    await Promise.all(deptDesignations.map((title, idx) =>
-                        fetch(`/api/resource/designation?organizationId=${orgId}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                title,
-                                departmentId: newDeptId,
-                                organizationId: orgId,
-                                level: idx + 1 // Auto-assign hierarchy level based on order
-                            })
-                        })
-                    ));
-                }
-
-                setDepartments([...departments, data.data]);
-                setNewDept({ name: '', code: '', username: '', password: '', panelType: 'Generic', features: [] });
-                setDeptDesignations(['Manager', 'Team Lead', 'Associate']); // Reset
-                setShowDeptForm(false);
-                setCounts(prev => ({ ...prev, department: (prev.department || 0) + 1 }));
-                setSaveSuccess('Department created with designations!');
-                setTimeout(() => setSaveSuccess(null), 3000);
-            }
-        } catch (e) {
-            console.error('Error adding department:', e);
-        }
-    };
 
     const addDesignation = () => {
         if (desigInput && !deptDesignations.includes(desigInput)) {
@@ -214,55 +183,7 @@ export default function OrganizationDashboard() {
         }
     };
 
-    const handleEditSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingDept || !editingDept.name) return;
 
-        try {
-            const res = await fetch(`/api/resource/department/${editingDept._id}?organizationId=${orgId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: editingDept.name,
-                    code: editingDept.code,
-                    panelType: editingDept.panelType,
-                    features: editingDept.features
-                })
-            });
-            if (res.ok) {
-                setDepartments(departments.map(d => d._id === editingDept._id ? { ...d, ...editingDept } : d));
-                setEditingDept(null);
-            }
-        } catch (e) {
-            console.error('Error saving department customizations:', e);
-        }
-    };
-
-    const handleSaveFeatures = async (newFeatures: string[]) => {
-        if (!customizingDept) return;
-
-        // If customizing a new department (during creation)
-        if (customizingDept._id === 'new') {
-            setNewDept({ ...newDept, features: newFeatures });
-            setCustomizingDept(null);
-            return;
-        }
-
-        // Otherwise, update existing department
-        try {
-            const res = await fetch(`/api/resource/department/${customizingDept._id}?organizationId=${orgId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ features: newFeatures })
-            });
-            if (res.ok) {
-                setDepartments(departments.map(d => d._id === customizingDept._id ? { ...d, features: newFeatures } : d));
-                setCustomizingDept(null);
-            }
-        } catch (e) {
-            console.error('Error saving features:', e);
-        }
-    };
 
     const maxEmployees = org?.subscription?.maxEmployees || 0;
     const totalUsers = (counts.employee || 0) + (counts.student || 0);
@@ -274,12 +195,11 @@ export default function OrganizationDashboard() {
                 title={`${org?.name || 'Organization'} - Multi-Department Dashboard`}
                 onCustomize={() => alert('Global Organization customization coming soon!')}
                 summaryItems={[
-                    { label: 'Active Depts', value: loading ? '...' : counts.department || 0, color: 'text-purple-500', doctype: 'department' },
-                    { label: 'Total Staff', value: loading ? '...' : counts.employee || 0, color: 'text-blue-500', doctype: 'employee' },
-                    { label: 'Daily Attendance', value: loading ? '...' : counts.attendance || 0, color: 'text-emerald-500', doctype: 'attendance' },
+                    { label: 'Total Staff', value: '', color: 'text-blue-500', doctype: 'employee' },
+                    { label: 'Daily Attendance', value: '', color: 'text-emerald-500', doctype: 'attendance' },
                 ]}
                 masterCards={[
-                    { label: 'Departments', icon: Building2, count: '', href: '/department' },
+                    { label: 'Departments', icon: Building2, count: '', href: '/organization/departments' },
                     { label: 'All Staffs', icon: Users, count: '', href: '/employee' },
                     { label: 'System Access', icon: Shield, count: '', href: '#' },
                 ]}
@@ -291,98 +211,7 @@ export default function OrganizationDashboard() {
                 ]}
             />
 
-            {editingDept && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <h3 className="font-bold text-[#1d2129] flex items-center gap-2">
-                                <Building2 size={18} className="text-blue-600" />
-                                Customize Department
-                            </h3>
-                            <button onClick={() => setEditingDept(null)} className="text-gray-400 hover:text-gray-600"><LogOut size={16} /></button>
-                        </div>
-                        <form onSubmit={handleEditSave} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[12px] font-bold text-gray-700 mb-1">Department Name</label>
-                                <input
-                                    value={editingDept.name}
-                                    onChange={e => setEditingDept({ ...editingDept, name: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[13px] focus:border-blue-500 focus:outline-none"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[12px] font-bold text-gray-700 mb-1">Department Code</label>
-                                <input
-                                    value={editingDept.code}
-                                    onChange={e => setEditingDept({ ...editingDept, code: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[13px] focus:border-blue-500 focus:outline-none"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[12px] font-bold text-gray-700 mb-1">Panel Function</label>
-                                <select
-                                    value={editingDept.panelType}
-                                    onChange={e => {
-                                        const type = e.target.value;
-                                        let updatedFeatures = [...(editingDept.features || [])];
-                                        if (type === 'HR') {
-                                            const hrDefaults = ['Add Employee', 'Post Vacancy', 'Employee Transfer'];
-                                            hrDefaults.forEach(f => {
-                                                if (!updatedFeatures.includes(f)) updatedFeatures.push(f);
-                                            });
-                                        }
-                                        setEditingDept({ ...editingDept, panelType: type, features: updatedFeatures });
-                                    }}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-[13px] focus:border-blue-500 focus:outline-none"
-                                >
-                                    <option value="Generic">Generic (Default)</option>
-                                    <option value="HR">HR Workspace</option>
-                                    <option value="Operations">Operations Workspace</option>
-                                    <option value="Finance">Finance Workspace</option>
-                                </select>
-                                <p className="text-[11px] text-gray-500 mt-1">Changes which dashboard this department sees on login.</p>
-                            </div>
-                            <div className="max-h-60 overflow-y-auto space-y-2 pt-2 border-t border-gray-100">
-                                <label className="block text-[12px] font-bold text-gray-700 mb-1">Available Functions</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {[
-                                        'Add Employee', 'Post Vacancy', 'Employee Transfer',
-                                        'Attendance', 'Recruitment', 'Payroll', 'Employee Lifecycle', 'Shift Management', 'Holidays', 'Announcements',
-                                        'Invoices', 'Payments', 'Expenses', 'General Ledger', 'Taxation', 'Quotations', 'Sales Orders',
-                                        'University', 'Study Center', 'Applications', 'Student Records', 'Programs',
-                                        'Stock Entry', 'Delivery Note', 'Item Management', 'Purchase Receipt', 'Warehouses', 'Suppliers',
-                                        'Leads', 'Deals', 'Customers', 'Touchpoints',
-                                        'Projects', 'Tasks', 'Timesheets', 'Agile Board',
-                                        'Tickets', 'Issues', 'Warranty Claims', 'Knowledge Base',
-                                        'Asset Tracking', 'Maintenance', 'Depreciation'
-                                    ].map(feat => (
-                                        <label key={feat} className={`flex items-center gap-1.5 px-2 py-1.5 rounded border cursor-pointer hover:bg-gray-100 transition-colors ${(editingDept.features || []).includes(feat) ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-white border-gray-100 text-gray-600'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={(editingDept.features || []).includes(feat)}
-                                                onChange={e => {
-                                                    let newFeats = [...(editingDept.features || [])];
-                                                    if (e.target.checked) newFeats.push(feat);
-                                                    else newFeats = newFeats.filter(f => f !== feat);
-                                                    setEditingDept({ ...editingDept, features: newFeats });
-                                                }}
-                                                className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
-                                            />
-                                            <span className="text-[11px] font-medium">{feat}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setEditingDept(null)} className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg font-bold text-[13px] hover:bg-gray-50">Cancel</button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-[13px] hover:bg-blue-700">Save Changes</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+
 
             {/* Department Visibility Grid */}
             <div className="max-w-6xl mx-auto space-y-4">
@@ -399,131 +228,15 @@ export default function OrganizationDashboard() {
                     </button>
                 </div>
 
-                {showDeptForm && (
-                    <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 animate-in slide-in-from-top duration-300">
-                        <form onSubmit={handleAddDept} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-blue-700 uppercase">Dept Name (Panel)</label>
-                                <input
-                                    value={newDept.name}
-                                    onChange={e => setNewDept({ ...newDept, name: e.target.value })}
-                                    placeholder="e.g. Finance"
-                                    className="w-full bg-white border border-blue-200 px-3 py-2 rounded focus:outline-none focus:border-blue-500 text-[13px]"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-blue-700 uppercase">Code</label>
-                                <input value={newDept.code} onChange={e => setNewDept({ ...newDept, code: e.target.value })} className="w-full bg-white border border-blue-200 px-3 py-2 rounded focus:outline-none focus:border-blue-500 text-[13px]" required />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-blue-700 uppercase">Admin Username</label>
-                                <input value={newDept.username} onChange={e => setNewDept({ ...newDept, username: e.target.value })} placeholder="e.g. hr_admin" className="w-full bg-white border border-blue-200 px-3 py-2 rounded focus:outline-none focus:border-blue-500 text-[13px]" required />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-blue-700 uppercase">Admin Password</label>
-                                <input value={newDept.password} onChange={e => setNewDept({ ...newDept, password: e.target.value })} type="text" placeholder="Set password" className="w-full bg-white border border-blue-200 px-3 py-2 rounded focus:outline-none focus:border-blue-500 text-[13px]" required />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-blue-700 uppercase">Panel Interface</label>
-                                <select
-                                    value={newDept.panelType}
-                                    onChange={e => {
-                                        const type = e.target.value;
-                                        let updatedFeatures = [...(newDept.features || [])];
-                                        if (type === 'HR') {
-                                            const hrDefaults = ['Add Employee', 'Post Vacancy', 'Employee Transfer'];
-                                            hrDefaults.forEach(f => {
-                                                if (!updatedFeatures.includes(f)) updatedFeatures.push(f);
-                                            });
-                                        }
-                                        setNewDept({ ...newDept, panelType: type, features: updatedFeatures });
-                                    }}
-                                    className="w-full bg-white border border-blue-200 px-3 py-2 rounded focus:outline-none focus:border-blue-500 text-[13px]"
-                                    required
-                                >
-                                    <option value="Generic">Generic (Default)</option>
-                                    <option value="HR">HR Workspace</option>
-                                    <option value="Operations">Operations Workspace</option>
-                                    <option value="Finance">Finance Workspace</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-1 md:col-span-2">
-                                <label className="text-[11px] font-bold text-blue-700 uppercase">Initial Designations</label>
-                                <div className="flex gap-2 mb-2">
-                                    <input
-                                        value={desigInput}
-                                        onChange={e => setDesigInput(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addDesignation())}
-                                        placeholder="e.g. Manager"
-                                        className="flex-1 bg-white border border-blue-200 px-3 py-2 rounded focus:outline-none focus:border-blue-500 text-[13px]"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={addDesignation}
-                                        className="bg-blue-100 text-blue-700 px-3 py-2 rounded font-bold text-[13px] hover:bg-blue-200"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5 min-h-[30px] bg-blue-50/50 p-2 rounded border border-blue-100">
-                                    {deptDesignations.length === 0 ? (
-                                        <span className="text-[11px] text-gray-400 italic">No designations added yet.</span>
-                                    ) : (
-                                        deptDesignations.map((d, idx) => (
-                                            <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-white border border-blue-200 text-blue-700 rounded text-[11px] font-bold shadow-sm">
-                                                {d}
-                                                <button type="button" onClick={() => removeDesignation(idx)} className="text-red-400 hover:text-red-600">
-                                                    <Trash2 size={10} />
-                                                </button>
-                                            </span>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="space-y-1 md:col-span-4">
-                                <label className="text-[11px] font-bold text-blue-700 uppercase">Functions / Features</label>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setCustomizingDept({ ...newDept, _id: 'new', name: newDept.name || 'New Department' });
-                                    }}
-                                    className="w-full bg-white border border-blue-200 px-4 py-3 rounded hover:bg-blue-50 hover:border-blue-400 transition-all text-left flex items-center justify-between group"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Settings size={16} className="text-blue-600" />
-                                        <span className="text-[13px] font-medium text-[#1d2129]">
-                                            {(newDept.features || []).length > 0
-                                                ? `${newDept.features.length} feature${newDept.features.length !== 1 ? 's' : ''} selected`
-                                                : 'Select Features'}
-                                        </span>
-                                    </div>
-                                    <ArrowRight size={14} className="text-gray-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-transform" />
-                                </button>
-                                {(newDept.features || []).length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 mt-2">
-                                        {newDept.features.slice(0, 8).map(feat => (
-                                            <span key={feat} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">
-                                                {feat}
-                                            </span>
-                                        ))}
-                                        {newDept.features.length > 8 && (
-                                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-bold">
-                                                +{newDept.features.length - 8} more
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex gap-2">
-                                <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-bold text-[13px] hover:bg-blue-700 flex-1">Create Panel</button>
-                                <button type="button" onClick={() => setShowDeptForm(false)} className="bg-white text-gray-500 border border-gray-200 px-6 py-2 rounded font-bold text-[13px] hover:bg-gray-50">Cancel</button>
-                            </div>
-                        </form>
+                {errorMessage && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 animate-in slide-in-from-top duration-200">
+                        <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-[13px] font-medium">{errorMessage}</span>
                     </div>
                 )}
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {departments.map(dept => {
@@ -588,10 +301,11 @@ export default function OrganizationDashboard() {
                                     </div>
                                 </div>
                             </Link>
-                        )
+                        );
                     })}
                 </div>
             </div>
+
 
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Global Activity Feed */}
@@ -701,7 +415,7 @@ export default function OrganizationDashboard() {
                                         <tr key={dept._id} className="hover:bg-gray-50/50 transition-colors">
                                             <td className="px-4 py-4">
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(rowInputs[dept._id]?.panelType || dept.panelType) === 'HR' ? 'bg-purple-100 text-purple-700' :
-                                                    (rowInputs[dept._id]?.panelType || dept.panelType) === 'Operations' ? 'bg-orange-100 text-orange-700' :
+                                                    ((rowInputs[dept._id]?.panelType || dept.panelType) === 'Operations' || (rowInputs[dept._id]?.panelType || dept.panelType) === 'Education') ? 'bg-orange-100 text-orange-700' :
                                                         (rowInputs[dept._id]?.panelType || dept.panelType) === 'Finance' ? 'bg-emerald-100 text-emerald-700' :
                                                             'bg-blue-100 text-blue-700'
                                                     }`}>
@@ -760,12 +474,53 @@ export default function OrganizationDashboard() {
                 </div>
             </div>
 
-            <CustomizationModal
-                isOpen={!!customizingDept}
-                onClose={() => setCustomizingDept(null)}
-                currentFeatures={customizingDept?.features || []}
-                onSave={handleSaveFeatures}
-                title={`${customizingDept?.name} Customization`}
+            <DepartmentModal
+                isOpen={showDeptForm || !!editingDept || !!customizingDept}
+                onClose={() => {
+                    setShowDeptForm(false);
+                    setEditingDept(null);
+                    setCustomizingDept(null);
+                    setModalError('');
+                }}
+                error={modalError}
+                initialData={editingDept || customizingDept}
+                onSave={async (data) => {
+                    setModalError('');
+                    const isNew = !editingDept && !customizingDept;
+                    const target = editingDept || customizingDept;
+
+                    try {
+                        const url = isNew
+                            ? `/api/resource/department?organizationId=${orgId}`
+                            : `/api/resource/department/${target._id}?organizationId=${orgId}`;
+
+                        const res = await fetch(url, {
+                            method: isNew ? 'POST' : 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(isNew ? { ...data, organizationId: orgId } : data)
+                        });
+
+                        if (res.ok) {
+                            const result = await res.json();
+                            if (isNew) {
+                                setDepartments([...departments, result.data]);
+                                setCounts(prev => ({ ...prev, department: (prev.department || 0) + 1 }));
+                            } else {
+                                setDepartments(departments.map(d => d._id === target._id ? result.data : d));
+                            }
+                            setShowDeptForm(false);
+                            setEditingDept(null);
+                            setCustomizingDept(null);
+                        } else {
+                            const err = await res.json();
+                            setModalError(err.error || 'Failed to save department');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        setModalError('Network error occurred');
+                    }
+                }}
+                title={editingDept ? `Edit ${editingDept.name}` : customizingDept ? `Customize ${customizingDept.name}` : 'Launch New Department'}
             />
         </div>
     );

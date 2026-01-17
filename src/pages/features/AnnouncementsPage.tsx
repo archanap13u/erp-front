@@ -1,12 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Megaphone, Bell, Pin, ArrowRight, Users } from 'lucide-react';
+import { Megaphone, Bell, Pin, ArrowRight, Users, Edit, Trash2, Building2 } from 'lucide-react';
 import Workspace from '../../components/Workspace';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function AnnouncementsPage() {
     const [announcements, setAnnouncements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'active' | 'archive'>('active');
+    const [userCenterId, setUserCenterId] = useState(localStorage.getItem('study_center_id'));
+    const userRole = localStorage.getItem('user_role');
+    const userCenterName = localStorage.getItem('study_center_name');
+    const location = useLocation();
+
+    // Context from URL
+    const params = new URLSearchParams(location.search);
+    const queryDeptName = params.get('department');
+    const queryDeptId = params.get('departmentId');
 
     const handleVote = async (announcementId: string, optionLabel: string) => {
         try {
@@ -25,7 +34,10 @@ export default function AnnouncementsPage() {
             if (res.ok) {
                 // Refresh data
                 const orgId = localStorage.getItem('organization_id');
-                const resRefresh = await fetch(`/api/resource/announcement?organizationId=${orgId || ''}`);
+                const deptId = queryDeptId || localStorage.getItem('department_id');
+                const deptName = queryDeptName || localStorage.getItem('department_name');
+                const query = `?organizationId=${orgId || ''}${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
+                const resRefresh = await fetch(`/api/resource/announcement${query}`);
                 const json = await resRefresh.json();
                 setAnnouncements((json.data || []).slice(0, 15));
             } else {
@@ -36,22 +48,85 @@ export default function AnnouncementsPage() {
         }
     };
 
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this announcement?')) return;
+        try {
+            const res = await fetch(`/api/resource/announcement/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setAnnouncements(prev => prev.filter(a => a._id !== id));
+            } else {
+                alert('Failed to delete announcement');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error deleting announcement');
+        }
+    };
+
     const filteredAnnouncements = announcements.filter(ann => {
         if (!ann.endDate) return filter === 'active'; // Legacy check
         const now = new Date();
         const end = new Date(ann.endDate);
         if (filter === 'active') return now <= end;
         if (filter === 'archive') return now > end;
+
+        // Targeted Filtering for Study Centers
+        if (userRole === 'StudyCenter') {
+            // Show if target is 'All', or matches Name, or matches ID (resolved)
+            const isTargeted = ann.targetCenter === 'All' || ann.targetCenter === userCenterName || ann.targetCenter === userCenterId;
+            if (!isTargeted) return false;
+        }
+
         return true;
     });
+
+
+
+    // Resolve Center ID if missing
+    useEffect(() => {
+        const resolveId = async () => {
+            if (userRole === 'StudyCenter' && !userCenterId && userCenterName) {
+                try {
+                    const orgId = localStorage.getItem('organization_id');
+                    const res = await fetch(`/api/resource/studycenter?organizationId=${orgId || ''}`);
+                    const json = await res.json();
+                    const found = (json.data || []).find((c: any) => c.centerName === userCenterName);
+                    if (found) setUserCenterId(found._id);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        };
+        resolveId();
+    }, [userRole, userCenterId, userCenterName]);
 
     useEffect(() => {
         async function fetchData() {
             try {
                 const orgId = localStorage.getItem('organization_id');
-                const res = await fetch(`/api/resource/announcement?organizationId=${orgId || ''}`);
+                const userRoleFromStorage = localStorage.getItem('user_role');
+                const deptIdFromStorage = localStorage.getItem('department_id');
+                const deptNameFromStorage = localStorage.getItem('department_name');
+
+                let deptId = queryDeptId || deptIdFromStorage;
+                let deptName = queryDeptName || deptNameFromStorage;
+
+                // Fallback for Admins without query params
+                if (!deptName && (userRoleFromStorage === 'OrganizationAdmin' || userRoleFromStorage === 'SuperAdmin')) {
+                    const path = location.pathname;
+                    if (path.startsWith('/hr') || path.startsWith('/employee') || path.startsWith('/jobopening') || path.startsWith('/attendance') || path.startsWith('/holiday')) {
+                        deptName = 'Human Resources';
+                    } else if (path.startsWith('/ops-dashboard') || path.startsWith('/student') || path.startsWith('/university') || path.startsWith('/program') || path.startsWith('/studycenter')) {
+                        deptName = 'Operations';
+                    } else if (path.startsWith('/finance') || path.startsWith('/salesinvoice') || path.startsWith('/payment') || path.startsWith('/expense')) {
+                        deptName = 'Finance';
+                    }
+                }
+
+                const query = `?organizationId=${orgId || ''}${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
+                const res = await fetch(`/api/resource/announcement${query}`);
                 const json = await res.json();
-                setAnnouncements((json.data || []).slice(0, 15));
+                setAnnouncements(json.data || []);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -59,7 +134,7 @@ export default function AnnouncementsPage() {
             }
         }
         fetchData();
-    }, []);
+    }, [queryDeptName, queryDeptId]);
 
     return (
         <div className="space-y-8 pb-20 text-[#1d2129]">
@@ -129,6 +204,14 @@ export default function AnnouncementsPage() {
                                 {announcement.pinned && (
                                     <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded-full">Pinned</span>
                                 )}
+                                <div className="flex gap-2 ml-4">
+                                    <Link to={`/announcement/${announcement._id}`} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                        <Edit size={16} />
+                                    </Link>
+                                    <button onClick={() => handleDelete(announcement._id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                             <p className="text-[13px] text-gray-700 mb-4">{announcement.description || announcement.content || 'No description available.'}</p>
 
@@ -163,7 +246,9 @@ export default function AnnouncementsPage() {
                             )}
 
                             <div className="flex items-center gap-4 text-[11px] text-gray-500">
-                                <span className="flex items-center gap-1"><Users size={12} /> {announcement.department || 'All Departments'}</span>
+                                <span className="flex items-center gap-1 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                    <Building2 size={12} /> {announcement.targetCenter || 'All Centers'}
+                                </span>
                             </div>
                         </div>
                     ))

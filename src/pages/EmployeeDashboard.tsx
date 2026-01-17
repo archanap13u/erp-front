@@ -16,9 +16,13 @@ export default function EmployeeDashboard() {
 
         async function fetchData() {
             try {
+                const orgId = localStorage.getItem('organization_id');
+                const deptId = localStorage.getItem('department_id');
+                const query = `?organizationId=${orgId || ''}${deptId ? `&departmentId=${deptId}` : ''}`;
+
                 const [resAnn, resHol] = await Promise.all([
-                    fetch('/api/resource/announcement'),
-                    fetch('/api/resource/holiday')
+                    fetch(`/api/resource/announcement${query}`),
+                    fetch(`/api/resource/holiday${query}`)
                 ]);
                 const [jsonAnn, jsonHol] = await Promise.all([resAnn.json(), resHol.json()]);
 

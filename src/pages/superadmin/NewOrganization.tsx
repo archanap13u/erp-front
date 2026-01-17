@@ -23,7 +23,7 @@ export default function NewOrganizationPage() {
         setFormData({ ...formData, password });
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent, autoLogin = false) => {
         e.preventDefault();
         setError('');
         setLoading(true);
@@ -52,8 +52,27 @@ export default function NewOrganizationPage() {
 
             const data = await response.json();
             if (data.success) {
-                alert('Organization created successfully!');
-                navigate('/superadmin/organizations');
+                if (autoLogin) {
+                    // Perform automatic login
+                    const loginRes = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: formData.username, password: formData.password }),
+                    });
+                    const loginData = await loginRes.json();
+                    if (loginData.success) {
+                        localStorage.setItem('user_role', loginData.user.role);
+                        localStorage.setItem('user_name', loginData.user.name);
+                        if (loginData.user.organizationId) localStorage.setItem('organization_id', loginData.user.organizationId);
+                        navigate('/organization-dashboard');
+                    } else {
+                        alert('Organization created successfully, but auto-login failed. Please login manually.');
+                        navigate('/superadmin/organizations');
+                    }
+                } else {
+                    alert('Organization created successfully!');
+                    navigate('/superadmin/organizations');
+                }
             } else setError(data.error || 'Failed to create organization');
         } catch (err) {
             setError('An error occurred. Please try again.');
@@ -104,7 +123,20 @@ export default function NewOrganizationPage() {
                         </div>
                         <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
                             <Link to="/superadmin/organizations" className="px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition">Cancel</Link>
-                            <button type="submit" disabled={loading} className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50">
+                            <button
+                                type="button"
+                                onClick={(e) => handleSubmit(e as any, true)}
+                                disabled={loading}
+                                className="flex items-center space-x-2 bg-indigo-100 text-indigo-700 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-200 transition disabled:opacity-50"
+                            >
+                                <Key size={20} />
+                                <span>{loading ? 'Processing...' : 'Create & Login'}</span>
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50"
+                            >
                                 <Save size={20} />
                                 <span>{loading ? 'Creating...' : 'Create Organization'}</span>
                             </button>

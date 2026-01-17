@@ -131,6 +131,32 @@ export default function OrganizationDetailsPage() {
                         </div>
                     </div>
                     <div className="flex items-center space-x-3">
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const loginRes = await fetch('/api/auth/login', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ username: organization.username, password: organization.password }),
+                                    });
+                                    const loginData = await loginRes.json();
+                                    if (loginData.success) {
+                                        localStorage.setItem('user_role', loginData.user.role);
+                                        localStorage.setItem('user_name', loginData.user.name);
+                                        if (loginData.user.organizationId) localStorage.setItem('organization_id', loginData.user.organizationId);
+                                        navigate('/organization-dashboard');
+                                    } else {
+                                        alert('Login failed: ' + loginData.error);
+                                    }
+                                } catch (e) {
+                                    alert('Failed to login. Please try manually.');
+                                }
+                            }}
+                            className="flex items-center space-x-2 bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-200 transition"
+                        >
+                            <Key size={16} />
+                            <span>Login to Portal</span>
+                        </button>
                         <Link to={`/superadmin/organizations/${id}/edit`} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
                             <Edit size={16} />
                             <span>Edit</span>

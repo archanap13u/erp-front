@@ -24,6 +24,7 @@ import FinanceDashboard from './pages/FinanceDashboard';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import Departments from './pages/Departments';
 import DepartmentPanel from './pages/DepartmentPanel';
+import CenterDashboard from './pages/CenterDashboard';
 
 // HR Pages
 import AttendancePage from './pages/features/AttendancePage';
@@ -36,6 +37,7 @@ import EmployeeOffboardingPage from './pages/features/EmployeeOffboardingPage';
 import ShiftManagementPage from './pages/features/ShiftManagementPage';
 import HolidaysPage from './pages/features/HolidaysPage';
 import AnnouncementsPage from './pages/features/AnnouncementsPage';
+import NotificationsPage from './pages/features/NotificationsPage';
 
 // Finance Pages
 import InvoicesPage from './pages/features/InvoicesPage';
@@ -58,10 +60,13 @@ import SuppliersPage from './pages/features/SuppliersPage';
 
 // Operations/Education Pages
 import UniversityPage from './pages/features/UniversityPage';
+import UniversityDetailsPage from './pages/features/UniversityDetailsPage';
 import StudyCenterPage from './pages/features/StudyCenterPage';
 import ApplicationsPage from './pages/features/ApplicationsPage';
 import StudentRecordsPage from './pages/features/StudentRecordsPage';
+import StudentDetailsPage from './pages/features/StudentDetailsPage';
 import ProgramsPage from './pages/features/ProgramsPage';
+import InternalMarksPage from './pages/features/InternalMarksPage';
 
 // Inventory Pages
 import StockEntryPage from './pages/features/StockEntryPage';
@@ -129,6 +134,7 @@ function App() {
                         <Route path="/ops-dashboard" element={<OpsDashboard />} />
                         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
                         <Route path="/student-dashboard" element={<StudentDashboard />} />
+                        <Route path="/center-dashboard" element={<CenterDashboard />} />
                         {/* HR Module */}
                         <Route path="/attendance" element={<AttendancePage />} />
                         <Route path="/job-opening" element={<RecruitmentPage />} />
@@ -140,6 +146,7 @@ function App() {
                         <Route path="/shift-assignment" element={<ShiftManagementPage />} />
                         <Route path="/holiday-list" element={<HolidaysPage />} />
                         <Route path="/announcement" element={<AnnouncementsPage />} />
+                        <Route path="/notifications" element={<NotificationsPage />} />
                         <Route path="/department-reports" element={<DepartmentReportsPage />} />
                         <Route path="/department-reports/:id" element={<DepartmentReportDetail />} />
 
@@ -161,10 +168,21 @@ function App() {
 
                         {/* Operations/Education Module */}
                         <Route path="/university" element={<UniversityPage />} />
-                        <Route path="/branch" element={<StudyCenterPage />} />
+                        <Route path="/university/new" element={<GenericNew doctype="university" />} />
+                        <Route path="/university/:id" element={<UniversityDetailsPage />} />
+                        <Route path="/university/:id/edit" element={<GenericEdit doctype="university" />} />
                         <Route path="/studentapplicant" element={<ApplicationsPage />} />
+                        <Route path="/branch" element={<StudyCenterPage />} />
+                        <Route path="/studycenter" element={<StudyCenterPage />} />
                         <Route path="/student" element={<StudentRecordsPage />} />
+                        <Route path="/student/new" element={<GenericNew doctype="student" />} />
+                        <Route path="/student/:id" element={<StudentDetailsPage />} />
+                        <Route path="/student/:id/edit" element={<GenericEdit doctype="student" />} />
                         <Route path="/program" element={<ProgramsPage />} />
+                        <Route path="/program/:id/edit" element={<GenericEdit doctype="program" />} />
+                        <Route path="/internalmark" element={<InternalMarksPage />} />
+                        <Route path="/internalmark/new" element={<GenericNew doctype="internalmark" />} />
+                        <Route path="/internalmark/:id/edit" element={<GenericEdit doctype="internalmark" />} />
 
                         {/* Inventory Module */}
                         <Route path="/stockentry" element={<StockEntryPage />} />

@@ -56,8 +56,8 @@ export default function DepartmentDetails() {
                     ]);
                     specificStats = {
                         universities: (await uniRes.json()).data?.length || 0,
-                        students: (await stuRes.json()).data?.length || 0,
-                        applications: (await appRes.json()).data?.length || 0
+                        applications: (await stuRes.json()).data?.length || 0,
+                        submissions: (await appRes.json()).data?.length || 0
                     };
                 } else if (deptData.data.panelType === 'Finance') {
                     const [invRes, payRes, expRes] = await Promise.all([
@@ -106,8 +106,8 @@ export default function DepartmentDetails() {
     if (hasFeature('University')) {
         summaryItems.push({ label: 'Universities', value: stats.universities || 0, color: 'text-orange-500', doctype: 'university' });
     }
-    if (hasFeature('Student')) { // Assuming 'Student' was a feature or tied to University
-        summaryItems.push({ label: 'Students', value: stats.students || 0, color: 'text-purple-500', doctype: 'student' });
+    if (hasFeature('STUDENTS')) { // Renamed from 'APPLICATIONS'
+        summaryItems.push({ label: 'Total STUDENTS', value: stats.students || 0, color: 'text-purple-500', doctype: 'student' });
     }
     if (hasFeature('Invoices')) {
         summaryItems.push({ label: 'Invoices', value: stats.invoices || 0, color: 'text-orange-500', doctype: 'salesinvoice' });
@@ -167,7 +167,7 @@ export default function DepartmentDetails() {
                         <p className="text-[13px] text-gray-600 leading-relaxed">
                             This department is configured as a <strong>{dept.panelType}</strong> unit.
                             {isHR && " It handles employee records, attendance tracking, payroll, and recruitment notifications."}
-                            {isOps && " It manages university partnerships, student enrollments, and application processing."}
+                            {isOps && " It manages university partnerships, application enrollments, and record processing."}
                             {isFinance && " It tracks invoices, payments, expense claims, and financial reporting."}
                             {!isHR && !isOps && !isFinance && " It has standard access to general resources."}
                         </p>

@@ -15,12 +15,39 @@ export default function GenericList() {
         if (!doctype) return;
         setLoading(true);
         const orgId = localStorage.getItem('organization_id');
-        const deptId = localStorage.getItem('department_id');
         const userRole = localStorage.getItem('user_role');
+        const deptIdFromStorage = localStorage.getItem('department_id');
+        const deptNameFromStorage = localStorage.getItem('department_name');
+
+        let deptId = deptIdFromStorage;
+        let deptName = deptNameFromStorage;
+
+        // Fallback for Admins without query params (detect context from path)
+        if (!deptName && (userRole === 'OrganizationAdmin' || userRole === 'SuperAdmin')) {
+            const path = location.pathname;
+            // Only apply automatic department silos for actual departmental news/meta
+            const isDepartmental = ['announcement', 'holiday', 'complaint', 'performancereview'].includes(doctype || '');
+
+            if (isDepartmental) {
+                if (path.startsWith('/hr') || path.startsWith('/employee') || path.startsWith('/jobopening') || path.startsWith('/attendance') || path.startsWith('/holiday')) {
+                    deptName = 'Human Resources';
+                } else if (path.startsWith('/ops-dashboard') || path.startsWith('/student') || path.startsWith('/university') || path.startsWith('/program') || path.startsWith('/studycenter')) {
+                    deptName = 'Operations';
+                } else if (path.startsWith('/finance') || path.startsWith('/salesinvoice') || path.startsWith('/payment') || path.startsWith('/expense')) {
+                    deptName = 'Finance';
+                }
+            }
+        }
 
         let url = `/api/resource/${doctype}?organizationId=${orgId || ''}`;
-        if (deptId && userRole !== 'SuperAdmin' && userRole !== 'OrganizationAdmin' && userRole !== 'HR') {
-            url += `&departmentId=${deptId}`;
+
+        // Don't silo Employees or Students by Department for HR/Admin roles
+        const isGlobalDoctype = ['employee', 'student'].includes(doctype || '');
+        const isAdminOrHR = userRole === 'SuperAdmin' || userRole === 'OrganizationAdmin' || userRole === 'HR';
+
+        if (!isGlobalDoctype || !isAdminOrHR) {
+            if (deptId) url += `&departmentId=${deptId}`;
+            if (deptName) url += `&department=${encodeURIComponent(deptName)}`;
         }
 
         fetch(url)
@@ -107,7 +134,7 @@ export default function GenericList() {
                                     >
                                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="rounded" /></td>
                                         <td className="px-4 py-3 font-medium text-blue-600 hover:underline">
-                                            {item.name || item.holidayName || item.universityName || item.centerName || item.programName || item.employeeName || item.studentName || item.student || item._id}
+                                            {item.name || item.job_title || item.title || item.subject || item.holidayName || item.universityName || item.centerName || item.programName || item.employeeName || item.studentName || item.student || item._id}
                                         </td>
                                         {doctype === 'employee' && (
                                             <td className="px-4 py-3 text-[#1d2129]">

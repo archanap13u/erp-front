@@ -8,6 +8,9 @@ export default function ApplicationsPage() {
     const [applications, setApplications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const userRole = localStorage.getItem('user_role');
+    const isGlobalRole = userRole === 'SuperAdmin' || userRole === 'OrganizationAdmin' || userRole === 'Operations';
+
     useEffect(() => {
         async function fetchData() {
             try {
@@ -15,7 +18,7 @@ export default function ApplicationsPage() {
                 const deptId = localStorage.getItem('department_id');
 
                 let queryParams = `?organizationId=${orgId || ''}`;
-                if (deptId) {
+                if (deptId && !isGlobalRole) {
                     queryParams += `&departmentId=${deptId}`;
                 }
 
@@ -44,7 +47,7 @@ export default function ApplicationsPage() {
     return (
         <div className="space-y-8 pb-20 text-[#1d2129]">
             <Workspace
-                title="Student Applications"
+                title="ADMISSIONS Applications"
                 newHref="/studentapplicant/new"
                 newLabel="New Application"
                 summaryItems={[
@@ -134,7 +137,7 @@ export default function ApplicationsPage() {
                             New Application
                         </Link>
                         <Link to="/program-enrollment/new" className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-[13px] font-medium backdrop-blur-sm transition-colors no-underline">
-                            Enroll Student
+                            Enroll APPLICATION
                         </Link>
                     </div>
                 </div>

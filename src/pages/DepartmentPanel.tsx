@@ -2,13 +2,19 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Workspace from '../components/Workspace';
-import { Activity, Shield, Users, FileText, BadgeDollarSign, Receipt, School, BookOpen, UserCheck, CalendarDays, Megaphone, GraduationCap, Building2 } from 'lucide-react';
+import { Activity, Shield, Users, FileText, BadgeDollarSign, Receipt, School, BookOpen, UserCheck, CalendarDays, Megaphone, GraduationCap, Building2, ClipboardList, ArrowRight, Edit, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import DepartmentStaffManager from '../components/DepartmentStaffManager';
 import DepartmentStudentManager from '../components/DepartmentStudentManager';
+import ApplicationPanel from '../components/ApplicationPanel';
 
 export default function DepartmentPanel() {
     const { id } = useParams();
     const [dept, setDept] = useState<any>(null);
+    const [counts, setCounts] = useState<{ [key: string]: number }>({});
     const [loading, setLoading] = useState(true);
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [employeeSearch, setEmployeeSearch] = useState('');
 
     useEffect(() => {
         if (!id) return;
@@ -18,6 +24,21 @@ export default function DepartmentPanel() {
                 const res = await fetch(`/api/resource/department/${id}?organizationId=${orgId}`);
                 const data = await res.json();
                 setDept(data.data);
+
+                // Fetch real counts for this department
+                const query = `?organizationId=${orgId}&departmentId=${id}`;
+                const [resEmp, resAtt] = await Promise.all([
+                    fetch(`/api/resource/employee${query}`),
+                    fetch(`/api/resource/attendance${query}`)
+                ]);
+                const [jsonEmp, jsonAtt] = await Promise.all([resEmp.json(), resAtt.json()]);
+
+                setEmployees(jsonEmp.data || []);
+
+                setCounts({
+                    employee: jsonEmp.data?.length || 0,
+                    attendance: jsonAtt.data?.length || 0
+                });
             } catch (e) {
                 console.error(e);
             } finally {
@@ -36,7 +57,7 @@ export default function DepartmentPanel() {
     const masterCards = [];
     const shortcuts = [];
     const summaryItems = [
-        { label: 'Staff Member', value: '12', color: 'text-blue-600', doctype: 'employee' }
+        { label: 'Assigned Staff', value: loading ? '...' : counts.employee || 0, color: 'text-blue-600', doctype: 'employee' }
     ];
 
     // HR Features
@@ -49,7 +70,7 @@ export default function DepartmentPanel() {
             color: 'bg-emerald-50 text-emerald-600'
         });
         shortcuts.push({ label: 'Mark Attendance', href: '/attendance/new' });
-        summaryItems.push({ label: 'Present Today', value: '45', color: 'text-emerald-600', doctype: 'attendance' });
+        summaryItems.push({ label: 'Present Today', value: loading ? '...' : counts.attendance || 0, color: 'text-emerald-600', doctype: 'attendance' });
     }
     if (hasFeature('Recruitment')) {
         masterCards.push({
@@ -124,11 +145,20 @@ export default function DepartmentPanel() {
     if (hasFeature('Study Center')) {
         masterCards.push({ label: 'Study Centers', count: '', icon: BookOpen, href: '/studycenter', color: 'bg-cyan-50 text-cyan-600' });
     }
-    if (hasFeature('Applications')) masterCards.push({ label: 'Applications', count: '', icon: FileText, href: '/applications', color: 'bg-teal-50 text-teal-600' });
-    if (hasFeature('Student Records')) shortcuts.push({ label: 'Student Directory', href: '/student-list' });
+    if (hasFeature('STUDENTS')) shortcuts.push({ label: 'STUDENTS Directory', href: '/student' });
     if (hasFeature('Programs')) {
         masterCards.push({ label: 'Programs', count: '', icon: GraduationCap, href: '/program', color: 'bg-violet-50 text-violet-600' });
         shortcuts.push({ label: 'Create Program', href: '/program/new' });
+    }
+    if (hasFeature('APPLICATIONS')) {
+        masterCards.push({
+            label: 'APPLICATIONS',
+            count: '',
+            icon: ClipboardList,
+            href: '/studentapplicant',
+            color: 'bg-blue-50 text-blue-600'
+        });
+        shortcuts.push({ label: 'Verify Applications', href: '/studentapplicant' });
     }
 
     // New Modules Logic
@@ -230,11 +260,123 @@ export default function DepartmentPanel() {
                     </div>
                 </div>
 
-                {/* Student Management Section (If Education module) */}
-                {(hasFeature('Student Records') || hasFeature('Applications')) && (
+                {/* APPLICATIONS Feature Section */}
+                {hasFeature('APPLICATIONS') && (
+                    <div className="space-y-4 mb-8">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-[18px] font-bold text-[#1d2129] flex items-center gap-2">
+                                    <ClipboardList size={22} className="text-blue-600" />
+                                    APPLICATIONS
+                                </h3>
+                                <p className="text-[13px] text-gray-500 font-bold mt-1">Center Student Verification</p>
+                                <p className="text-[12px] text-gray-400">Reviewing student records submitted by study centers.</p>
+                            </div>
+                            <Link to="/studentapplicant" className="text-blue-600 font-bold text-[13px] hover:underline flex items-center gap-1">
+                                View All Applications <ArrowRight size={14} />
+                            </Link>
+                        </div>
+                        <div className="bg-white rounded-xl border border-[#d1d8dd] shadow-sm overflow-hidden p-2">
+                            <ApplicationPanel
+                                organizationId={localStorage.getItem('organization_id') || undefined}
+                                departmentId={id}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Employee List Section */}
+                {hasFeature('Employee List') && (
+                    <div className="space-y-8 mb-8">
+                        <div className="bg-white p-6 rounded-2xl border border-[#d1d8dd] shadow-sm overflow-hidden">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                                <h3 className="text-[18px] font-bold text-[#1d2129] flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+                                        <Users size={20} />
+                                    </div>
+                                    Staff Directory
+                                </h3>
+                                <div className="flex items-center gap-4">
+                                    <Link to="/employee" className="text-blue-600 font-bold text-[13px] hover:underline flex items-center gap-1">
+                                        View Full List <ArrowRight size={14} />
+                                    </Link>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder="Search staff..."
+                                            value={employeeSearch}
+                                            onChange={(e) => setEmployeeSearch(e.target.value)}
+                                            className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:border-blue-400 w-full md:w-64"
+                                        />
+                                        <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 uppercase tracking-tighter text-[11px] font-black text-gray-400 bg-gray-50/50">
+                                            <th className="px-4 py-3">Staff Member</th>
+                                            <th className="px-4 py-3">ID</th>
+                                            <th className="px-4 py-3">Designation</th>
+                                            <th className="px-4 py-3 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {employees
+                                            .filter(emp =>
+                                            (emp.employeeName?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+                                                emp.employeeId?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+                                                emp.designation?.toLowerCase().includes(employeeSearch.toLowerCase()))
+                                            )
+                                            .slice(0, 10).map((emp, idx) => (
+                                                <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-[10px]">
+                                                                {emp.employeeName?.charAt(0)}
+                                                            </div>
+                                                            <span className="text-[13px] font-bold text-gray-700">{emp.employeeName}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-[12px] text-gray-500 font-medium">{emp.employeeId}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold border border-blue-100 uppercase">
+                                                            {emp.designation}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <Link to={`/employee/${emp._id}`} className="text-gray-400 hover:text-blue-600 transition-colors">
+                                                            <Edit size={14} />
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                                {employees.length === 0 && (
+                                    <div className="py-12 text-center text-gray-400 italic text-[14px]">
+                                        No staff found in this workspace.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <DepartmentStaffManager
+                            departmentId={id}
+                            title="Staff & Hierarchy"
+                            description="Manage credentials and visual organization chart."
+                        />
+                    </div>
+                )}
+
+                {/* STUDENTS Management Section (If Education module) */}
+                {hasFeature('STUDENTS') && (
                     <DepartmentStudentManager
                         departmentId={id}
-                        title={`${dept?.name} Student Management`}
+                        organizationId={localStorage.getItem('organization_id') || undefined}
+                        title={`${dept?.name} STUDENTS Management`}
                         description="Hierarchical view of students by program and counselor."
                     />
                 )}

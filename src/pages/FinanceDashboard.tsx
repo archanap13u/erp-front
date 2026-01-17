@@ -9,7 +9,10 @@ import {
     Receipt,
     ArrowRight,
     Search,
-    BookOpen
+    BookOpen,
+    Users,
+    GraduationCap,
+    Eye
 } from 'lucide-react';
 import Workspace from '../components/Workspace';
 import { Link } from 'react-router-dom';
@@ -18,20 +21,21 @@ import DepartmentStaffManager from '../components/DepartmentStaffManager';
 export default function FinanceDashboard() {
     const [counts, setCounts] = useState<{ [key: string]: number }>({});
     const [invoices, setInvoices] = useState<any[]>([]);
+    const [pendingStudents, setPendingStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const orgId = localStorage.getItem('organization_id');
+    const deptId = localStorage.getItem('department_id');
 
     useEffect(() => {
         async function fetchData() {
             try {
-                const orgId = localStorage.getItem('organization_id');
-                const deptId = localStorage.getItem('department_id');
                 const userRole = localStorage.getItem('user_role');
 
                 let baseUrl = `/api/resource`;
                 let queryParams = `?organizationId=${orgId || ''}`;
 
-                const isGlobalRole = userRole === 'SuperAdmin' || userRole === 'OrganizationAdmin' || userRole === 'HR';
-                if (deptId && !isGlobalRole) {
+                if (deptId) {
                     queryParams += `&departmentId=${deptId}`;
                 }
 
@@ -55,6 +59,11 @@ export default function FinanceDashboard() {
 
                 setInvoices((jsonInv.data || []).slice(0, 5)); // Recent 5
 
+                // Fetch Students Verified by Ops
+                const resStd = await fetch(`${baseUrl}/student${queryParams}&verificationStatus=Verified by Ops`);
+                const jsonStd = await resStd.json();
+                setPendingStudents(jsonStd.data || []);
+
             } catch (e) {
                 console.error(e);
             } finally {
@@ -64,26 +73,43 @@ export default function FinanceDashboard() {
         fetchData();
     }, []);
 
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [contextData, setContextData] = useState<{ id?: string, name?: string }>({});
+
+    useEffect(() => {
+        if (!orgId) return;
+        fetch(`/api/resource/department?organizationId=${orgId}`)
+            .then(res => res.json())
+            .then(json => {
+                const depts = json.data || [];
+                setDepartments(depts);
+                const finDept = depts.find((d: any) => d.panelType === 'Finance');
+                if (finDept) setContextData({ id: finDept._id, name: finDept.name });
+            })
+            .catch(err => console.error(err));
+    }, [orgId]);
+
     return (
         <div className="space-y-8 pb-20 text-[#1d2129]">
             <Workspace
                 title="Finance Workspace"
-                newHref="/salesinvoice/new"
+                newHref={`/salesinvoice/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}`}
                 summaryItems={[
-                    { label: 'Pending Invoices', value: loading ? '...' : counts.invoice || 0, color: 'text-orange-500', doctype: 'salesinvoice' },
-                    { label: 'Received Payments', value: loading ? '...' : counts.payment || 0, color: 'text-emerald-500', doctype: 'paymententry' },
-                    { label: 'Expense Claims', value: loading ? '...' : counts.expense || 0, color: 'text-red-500', doctype: 'expenseclaim' },
+                    { label: 'Total STUDENTS', value: '', color: 'text-blue-500', doctype: 'student' },
+                    { label: 'Received Payments', value: '', color: 'text-emerald-500', doctype: 'paymententry' },
+                    { label: 'Expense Claims', value: '', color: 'text-red-500', doctype: 'expenseclaim' },
                 ]}
                 masterCards={[
-                    { label: 'Invoices', icon: FileText, count: '', href: '/salesinvoice' },
+                    { label: 'STUDENT Fees', icon: GraduationCap, count: '', href: '/student' },
                     { label: 'Payments', icon: CreditCard, count: '', href: '/paymententry' },
                     { label: 'Expenses', icon: Receipt, count: '', href: '/expenseclaim' },
-                    { label: 'General Ledger', icon: BookOpen, count: '', href: '#' }, // Placeholder
+                    { label: 'General Ledger', icon: BookOpen, count: '', href: '#' },
                 ]}
                 shortcuts={[
-                    { label: 'Create Invoice', href: '/salesinvoice/new' },
-                    { label: 'Record Payment', href: '/paymententry/new' },
-                    { label: 'New Expense Claim', href: '/expenseclaim/new' },
+                    { label: 'Create Invoice', href: `/salesinvoice/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}` },
+                    { label: 'Record Payment', href: `/paymententry/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}` },
+                    { label: 'New Expense Claim', href: `/expenseclaim/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}` },
+                    { label: 'Post Announcement', href: `/announcement/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}` },
                 ]}
             />
 
@@ -121,6 +147,59 @@ export default function FinanceDashboard() {
                                             }`}>
                                             {inv.status || 'Draft'}
                                         </span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Pending Financial Approvals (New Section) */}
+                <div className="bg-white rounded-xl border border-[#d1d8dd] shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-[#d1d8dd] bg-indigo-50/30 flex items-center justify-between">
+                        <h3 className="text-[16px] font-bold text-[#1d2129] flex items-center gap-2">
+                            <CreditCard size={18} className="text-indigo-600" />
+                            Pending Financial Approvals
+                        </h3>
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            {pendingStudents.length} STUDENTS
+                        </span>
+                    </div>
+                    <div className="divide-y divide-gray-50">
+                        {pendingStudents.length === 0 ? (
+                            <div className="p-8 text-center text-gray-400 italic text-[13px]">No records awaiting financial approval.</div>
+                        ) : (
+                            pendingStudents.map((student, idx) => (
+                                <div key={idx} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded">
+                                            <Users size={16} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[13px] font-bold text-[#1d2129]">{student.studentName}</p>
+                                            <p className="text-[11px] text-gray-500 font-medium">{student.studyCenter}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Link to={`/student/${student._id}`} className="p-1.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all border border-transparent hover:border-blue-100" title="View Details">
+                                            <Eye size={14} />
+                                        </Link>
+                                        <button
+                                            onClick={async () => {
+                                                if (!confirm('Approve student financial record?')) return;
+                                                try {
+                                                    const res = await fetch(`/api/resource/student/${student._id}?organizationId=${orgId}`, {
+                                                        method: 'PUT',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ verificationStatus: 'Approved by Accounts' })
+                                                    });
+                                                    if (res.ok) window.location.reload();
+                                                } catch (e) { console.error(e); }
+                                            }}
+                                            className="bg-emerald-600 text-white px-3 py-1 rounded text-[11px] font-bold hover:bg-emerald-700 shadow-sm"
+                                        >
+                                            Approve
+                                        </button>
                                     </div>
                                 </div>
                             ))

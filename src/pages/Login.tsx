@@ -65,6 +65,29 @@ export default function LoginPage() {
                 if (data.user.employeeId) localStorage.setItem('employee_id', data.user.employeeId);
                 if (data.user.organizationId) localStorage.setItem('organization_id', data.user.organizationId);
                 if (data.user.departmentId) localStorage.setItem('department_id', data.user.departmentId);
+                if (data.user.role === 'StudyCenter') {
+                    localStorage.setItem('study_center_id', data.user.id || data.user._id);
+                }
+                if (data.user.study_center_name) localStorage.setItem('study_center_name', data.user.study_center_name);
+                if (data.user.studyCenter) localStorage.setItem('study_center_name', data.user.studyCenter); // Backward compatibility if needed
+
+                if (data.user.role === 'HR' || data.user.role === 'Operations' || data.user.role === 'Finance' || data.user.role === 'DepartmentAdmin') {
+                    // Fetch department details to ensure we have the correct department_name for isolation
+                    if (data.user.departmentId) {
+                        try {
+                            const deptRes = await fetch(`/api/resource/department/${data.user.departmentId}?organizationId=${data.user.organizationId}`);
+                            const deptJson = await deptRes.json();
+                            if (deptJson.data?.name) {
+                                localStorage.setItem('department_name', deptJson.data.name);
+                            }
+                            if (deptJson.data?.features) {
+                                localStorage.setItem('user_features', JSON.stringify(deptJson.data.features));
+                            }
+                        } catch (e) {
+                            console.error('Error fetching department details during login:', e);
+                        }
+                    }
+                }
 
                 if (data.user.role === 'HR') {
                     navigate('/hr');
@@ -78,21 +101,18 @@ export default function LoginPage() {
                     navigate('/ops-dashboard');
                 } else if (data.user.role === 'Finance') {
                     navigate('/finance');
+                } else if (data.user.role === 'StudyCenter') {
+                    navigate('/center-dashboard');
                 } else if (data.user.role === 'DepartmentAdmin') {
-                    // Fetch department details to check panelType
+                    // Fetch department details to check panelType (already fetched above, but we need the panelType specifically)
                     try {
                         const deptRes = await fetch(`/api/resource/department/${data.user.departmentId}?organizationId=${data.user.organizationId}`);
                         const deptJson = await deptRes.json();
                         const panelType = deptJson.data?.panelType;
 
-                        // Cache features for dashboards
-                        if (deptJson.data?.features) {
-                            localStorage.setItem('user_features', JSON.stringify(deptJson.data.features));
-                        }
-
                         if (panelType === 'HR') {
                             navigate('/hr');
-                        } else if (panelType === 'Operations') {
+                        } else if (panelType === 'Operations' || panelType === 'Education') {
                             navigate('/ops-dashboard');
                         } else if (panelType === 'Finance') {
                             navigate('/finance');
@@ -100,7 +120,6 @@ export default function LoginPage() {
                             navigate(`/department/${data.user.departmentId}`);
                         }
                     } catch (e) {
-                        console.error('Error fetching department details for redirection', e);
                         navigate(`/department/${data.user.departmentId}`);
                     }
                 } else {

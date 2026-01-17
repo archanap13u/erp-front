@@ -68,11 +68,13 @@ export default function Workspace({ title, summaryItems, masterCards, shortcuts,
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {summaryItems.map((item, i) => (
-                    <Link key={i} to={`/${item.doctype}`} className="frappe-card p-4 flex flex-col gap-1 bg-white hover:bg-gray-50 transition-colors no-underline">
-                        <span className={`text-[24px] font-bold ${item.color}`}>
-                            {item.value}
+                    <Link key={i} to={`/${item.doctype}`} className="frappe-card p-4 flex flex-col gap-1 bg-white hover:bg-gray-50 transition-colors no-underline group">
+                        <span className={`text-[24px] font-black ${item.color}`}>
+                            {item.value === '' ? (
+                                <span className="text-[13px] uppercase tracking-widest opacity-50 group-hover:opacity-100 transition-opacity">View Details</span>
+                            ) : item.value}
                         </span>
-                        <span className="text-[13px] text-[#626161]">{item.label}</span>
+                        <span className="text-[13px] text-[#626161] font-bold">{item.label}</span>
                     </Link>
                 ))}
             </div>

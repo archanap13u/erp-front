@@ -131,30 +131,153 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
 
 
     const [designations, setDesignations] = useState<any[]>([]);
+    const [formDesignations, setFormDesignations] = useState<any[]>([]);
     const [showDesignationModal, setShowDesignationModal] = useState(false);
     const [newDesignation, setNewDesignation] = useState({ title: '', level: 1, reportsTo: '' });
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+    // Fetch designations for a specific department (used in global view when selecting dept)
+    const fetchFormDesignations = async (deptId: string) => {
+        const orgId = localStorage.getItem('organization_id');
+        try {
+            // Fetch all org designations
+            const res = await fetch(`/api/resource/designation?organizationId=${orgId}`);
+            const data = await res.json();
+            const allDesig = data.data || [];
+
+            // Fetch department whitelist
+            const deptRes = await fetch(`/api/resource/department/${deptId}?organizationId=${orgId}`);
+            const deptData = await deptRes.json();
+
+            if (deptData.data?.designations?.length > 0) {
+                const whitelist = deptData.data.designations;
+                console.log('Department Whitelist:', whitelist);
+
+                // Check for any whitelisted titles that don't have a record yet
+                const missingTitles = whitelist.filter((title: string) =>
+                    !allDesig.some((d: any) => d.title.toLowerCase() === title.toLowerCase())
+                );
+
+                // Auto-create missing designation records
+                for (const title of missingTitles) {
+                    try {
+                        await fetch(`/api/resource/designation`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title, level: 1, departmentId: deptId, departmentName: deptData.data?.name, organizationId: orgId })
+                        });
+                    } catch (e) { console.error(e); }
+                }
+
+                // Re-fetch if we created any
+                if (missingTitles.length > 0) {
+                    const newRes = await fetch(`/api/resource/designation?organizationId=${orgId}`);
+                    const newData = await newRes.json();
+                    const finalDes = (newData.data || []).filter((d: any) =>
+                        whitelist.some((w: string) => w.toLowerCase() === d.title.toLowerCase())
+                    ).sort((a: any, b: any) => a.level - b.level);
+                    console.log('Filtered Designations (New):', finalDes);
+                    setFormDesignations(finalDes);
+                } else {
+                    const finalDes = allDesig.filter((d: any) =>
+                        whitelist.some((w: string) => w.toLowerCase() === d.title.toLowerCase())
+                    ).sort((a: any, b: any) => a.level - b.level);
+                    console.log('Filtered Designations:', finalDes);
+                    setFormDesignations(finalDes);
+                }
+            } else {
+                // No whitelist, show all
+                setFormDesignations(allDesig.sort((a: any, b: any) => a.level - b.level));
+            }
+        } catch (e) {
+            console.error(e);
+            setFormDesignations([]);
+        }
+    };
+
+    const fetchAllDesignations = async () => {
+        const orgId = localStorage.getItem('organization_id');
+        try {
+            const res = await fetch(`/api/resource/designation?organizationId=${orgId}`);
+            const data = await res.json();
+            setFormDesignations((data.data || []).sort((a: any, b: any) => a.level - b.level));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     useEffect(() => {
         if (departmentId) {
             fetchDesignations();
+        } else {
+            fetchAllDesignations();
         }
     }, [departmentId]);
 
     const fetchDesignations = async () => {
         try {
             const orgId = localStorage.getItem('organization_id');
-            let url = `/api/resource/designation?organizationId=${orgId}`;
-            // If we have a departmentId, we can filter, but for HR Global view, we want ALL designations to build the hierarchy
-            if (departmentId) {
-                url += `&departmentId=${departmentId}`;
-            }
-            const res = await fetch(url);
+
+            // Fetch all organization designations
+            const res = await fetch(`/api/resource/designation?organizationId=${orgId}`);
             const data = await res.json();
-            if (data.data) {
-                // Sort by level (ascending)
-                setDesignations(data.data.sort((a: any, b: any) => a.level - b.level));
+            const allDesignations = data.data || [];
+
+            let filteredDesignations = allDesignations;
+
+            // If we have a departmentId, fetch department config and sync whitelist
+            if (departmentId) {
+                try {
+                    const deptRes = await fetch(`/api/resource/department/${departmentId}?organizationId=${orgId}`);
+                    const deptData = await deptRes.json();
+
+                    if (deptData.data?.designations?.length > 0) {
+                        const whitelist = deptData.data.designations;
+
+                        // Check for any whitelisted titles that don't have a Designation record yet
+                        const missingTitles = whitelist.filter((title: string) =>
+                            !allDesignations.some((d: any) => d.title.toLowerCase() === title.toLowerCase())
+                        );
+
+                        // Auto-create missing designation records
+                        for (const title of missingTitles) {
+                            try {
+                                await fetch(`/api/resource/designation`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        title,
+                                        level: 1,
+                                        departmentId,
+                                        organizationId: orgId
+                                    })
+                                });
+                            } catch (e) {
+                                console.error(`Error creating designation ${title}:`, e);
+                            }
+                        }
+
+                        // If we created any, re-fetch to get the new records
+                        if (missingTitles.length > 0) {
+                            const newRes = await fetch(`/api/resource/designation?organizationId=${orgId}`);
+                            const newData = await newRes.json();
+                            filteredDesignations = (newData.data || []).filter((d: any) =>
+                                whitelist.some((w: string) => w.toLowerCase() === d.title.toLowerCase())
+                            );
+                        } else {
+                            // Filter by department's whitelisted designations
+                            filteredDesignations = allDesignations.filter((d: any) =>
+                                whitelist.some((w: string) => w.toLowerCase() === d.title.toLowerCase())
+                            );
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error fetching department whitelist:', e);
+                }
             }
+
+            // Sort by level (ascending)
+            setDesignations(filteredDesignations.sort((a: any, b: any) => a.level - b.level));
         } catch (e) {
             console.error(e);
         }
@@ -164,16 +287,44 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
         e.preventDefault();
         try {
             const orgId = localStorage.getItem('organization_id');
+
+            // Create the designation
+            const deptName = departments.find(d => d._id === departmentId)?.name;
             const res = await fetch(`/api/resource/designation?organizationId=${orgId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...newDesignation,
                     departmentId: departmentId,
+                    departmentName: deptName,
                     organizationId: orgId
                 })
             });
+
             if (res.ok) {
+                // If we have a departmentId, also add this designation to the department's whitelist
+                if (departmentId) {
+                    try {
+                        // Fetch current department to get existing whitelist
+                        const deptRes = await fetch(`/api/resource/department/${departmentId}?organizationId=${orgId}`);
+                        const deptData = await deptRes.json();
+                        const currentDesignations = deptData.data?.designations || [];
+
+                        // Add new designation if not already present
+                        if (!currentDesignations.some((d: string) => d.toLowerCase() === newDesignation.title.toLowerCase())) {
+                            await fetch(`/api/resource/department/${departmentId}?organizationId=${orgId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    designations: [...currentDesignations, newDesignation.title]
+                                })
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Error updating department whitelist:', e);
+                    }
+                }
+
                 fetchDesignations();
                 setNewDesignation({ title: '', level: designations.length + 2, reportsTo: '' });
             }
@@ -227,6 +378,8 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
                 department: finalDeptName,
                 departmentId: finalDeptId,
                 organizationId: orgId,
+                addedByDepartmentId: departmentId, // The managing HR panel ID
+                addedByDepartmentName: localStorage.getItem('department_name'), // The managing HR panel Name
                 status: 'Active',
                 dateOfJoining: new Date()
             };
@@ -282,7 +435,20 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
     };
 
     const renderRoleTree = (parentRole: string | null = null, level = 0) => {
-        const children = designations.filter(d => d.reportsTo === (parentRole || ''));
+        const activeList = departmentId ? designations : formDesignations;
+
+        let children;
+        if (parentRole === null) {
+            // Find "local roots": nodes with no parent OR parent not in the list
+            children = activeList.filter(d => {
+                if (!d.reportsTo) return true;
+                const parentExists = activeList.some(p => p.title === d.reportsTo);
+                return !parentExists;
+            });
+        } else {
+            children = activeList.filter(d => d.reportsTo === parentRole);
+        }
+
         if (children.length === 0) return null;
 
         return (
@@ -480,8 +646,10 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
         );
     };
 
+    const activeDesignations = departmentId ? designations : formDesignations;
+
     return (
-        <div className="bg-white rounded-xl border border-[#d1d8dd] shadow-sm overflow-hidden mt-8">
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden mb-8 transition-all hover:shadow-2xl">
             <div className="p-4 border-b border-[#d1d8dd] bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h3 className="flex items-center gap-2 font-bold text-[#1d2129]">
@@ -654,7 +822,15 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
                                         <select
                                             required
                                             value={(newStaff as any).departmentId || ''}
-                                            onChange={e => setNewStaff({ ...newStaff, ['departmentId' as any]: e.target.value })}
+                                            onChange={e => {
+                                                const selectedDeptId = e.target.value;
+                                                setNewStaff({ ...newStaff, ['departmentId' as any]: selectedDeptId, designation: '', reportsTo: '' });
+                                                if (selectedDeptId) {
+                                                    fetchFormDesignations(selectedDeptId);
+                                                } else {
+                                                    fetchAllDesignations();
+                                                }
+                                            }}
                                             className="w-full text-[13px] p-2.5 border rounded-lg h-[41px] shadow-sm focus:border-blue-400 outline-none bg-white transition-all appearance-none"
                                         >
                                             <option value="">Select Dept...</option>
@@ -674,13 +850,13 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
                                 </div>
                                 <div className="space-y-1.5 text-left">
                                     <label className="text-[11px] font-bold text-gray-600 flex items-center gap-1.5"><Users size={12} /> Designation</label>
-                                    {designations.length > 0 ? (
+                                    {activeDesignations.length > 0 ? (
                                         <select
                                             required
                                             value={newStaff.designation}
                                             onChange={e => {
                                                 const newDesig = e.target.value;
-                                                const desigData = designations.find(d => d.title === newDesig);
+                                                const desigData = activeDesignations.find(d => d.title === newDesig);
                                                 let autoManager = newStaff.reportsTo;
 
                                                 // Smart suggestion: if this designation reports to something specific, try to find a manager
@@ -694,12 +870,12 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
                                             className="w-full text-[13px] p-2.5 border rounded-lg h-[41px] shadow-sm focus:border-blue-400 outline-none bg-white transition-all appearance-none"
                                         >
                                             <option value="">Choose Level...</option>
-                                            {designations
+                                            {activeDesignations
                                                 .filter(d => {
                                                     // If reportsTo is selected, show only levels lower than manager
                                                     if (newStaff.reportsTo) {
                                                         const manager = employees.find(e => e._id === newStaff.reportsTo);
-                                                        const managerDesignation = designations.find(des => des.title === manager?.designation);
+                                                        const managerDesignation = activeDesignations.find(des => des.title === manager?.designation);
                                                         if (managerDesignation) return d.level > managerDesignation.level;
                                                     }
                                                     return true;
@@ -722,8 +898,16 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
                                         <option value="">None (Top Level)</option>
                                         {employees
                                             .filter(emp => {
-                                                const mgrDest = designations.find(d => d.title === emp.designation);
-                                                const myDest = designations.find(d => d.title === newStaff.designation);
+                                                // If dept is selected, show only employees from that dept
+                                                const targetDeptId = departmentId || (newStaff as any).departmentId;
+                                                if (targetDeptId && (emp.departmentId || emp.addedByDepartmentId) !== targetDeptId) {
+                                                    // Flexible check: use department name if ID check fails (legacy data support)
+                                                    const targetDept = departments.find(d => d._id === targetDeptId);
+                                                    if (targetDept && emp.department !== targetDept.name) return false;
+                                                }
+
+                                                const mgrDest = activeDesignations.find(d => d.title === emp.designation);
+                                                const myDest = activeDesignations.find(d => d.title === newStaff.designation);
                                                 if (mgrDest && myDest) return mgrDest.level < myDest.level;
                                                 return true;
                                             })

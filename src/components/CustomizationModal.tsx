@@ -10,10 +10,10 @@ interface CustomizationModalProps {
 }
 
 const ALL_FEATURES = [
-    'Add Employee', 'Post Vacancy', 'Employee Transfer',
+    'Add Employee', 'Post Vacancy', 'Job Application', 'Employee Transfer',
     'Attendance', 'Recruitment', 'Payroll', 'Employee Lifecycle', 'Shift Management', 'Holidays', 'Announcements',
     'Invoices', 'Payments', 'Expenses', 'General Ledger', 'Taxation', 'Quotations', 'Sales Orders',
-    'University', 'Study Center', 'Applications', 'Student Records', 'Programs',
+    'University', 'Study Center', 'STUDENTS', 'APPLICATIONS', 'Programs', 'Internal Marks',
     'Stock Entry', 'Delivery Note', 'Item Management', 'Purchase Receipt', 'Warehouses', 'Suppliers',
     'Leads', 'Deals', 'Customers', 'Touchpoints',
     'Projects', 'Tasks', 'Timesheets', 'Agile Board',
@@ -24,7 +24,7 @@ const ALL_FEATURES = [
 const PRESETS = [
     {
         name: 'Full HR Portal',
-        features: ['Add Employee', 'Post Vacancy', 'Employee Transfer', 'Attendance', 'Recruitment', 'Payroll', 'Employee Lifecycle', 'Shift Management', 'Holidays', 'Announcements'],
+        features: ['Add Employee', 'Post Vacancy', 'Job Application', 'Employee Transfer', 'Attendance', 'Recruitment', 'Payroll', 'Employee Lifecycle', 'Shift Management', 'Holidays', 'Announcements'],
         description: 'Complete suite for Human Resources management'
     },
     {
@@ -34,7 +34,7 @@ const PRESETS = [
     },
     {
         name: 'Education Ops',
-        features: ['University', 'Study Center', 'Applications', 'Student Records', 'Programs'],
+        features: ['University', 'Study Center', 'STUDENTS', 'APPLICATIONS', 'Programs', 'Internal Marks', 'Announcements'],
         description: 'Academic and operational management focus'
     },
     {
@@ -70,6 +70,14 @@ export default function CustomizationModal({ isOpen, onClose, currentFeatures, o
 
     const applyPreset = (features: string[]) => {
         setSelectedFeatures(features);
+    };
+
+    const handleSelectAll = () => {
+        setSelectedFeatures(ALL_FEATURES);
+    };
+
+    const handleDeselectAll = () => {
+        setSelectedFeatures([]);
     };
 
     return (
@@ -125,9 +133,27 @@ export default function CustomizationModal({ isOpen, onClose, currentFeatures, o
 
                     {/* Right Side: Feature Selection */}
                     <div className="lg:w-2/3">
-                        <h3 className="text-[12px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Shield size={14} /> Individual Features
-                        </h3>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-[12px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <Shield size={14} /> Individual Features
+                            </h3>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleSelectAll}
+                                    type="button"
+                                    className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                                >
+                                    Select All
+                                </button>
+                                <button
+                                    onClick={handleDeselectAll}
+                                    type="button"
+                                    className="text-[10px] font-bold text-gray-400 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                             {ALL_FEATURES.map((feature) => {
                                 const isActive = selectedFeatures.includes(feature);

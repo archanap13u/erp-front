@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building, MapPin, Users, ArrowRight } from 'lucide-react';
+import { Building, MapPin, Users, ArrowRight, ExternalLink, Lock } from 'lucide-react';
 import Workspace from '../../components/Workspace';
 import { Link } from 'react-router-dom';
 
@@ -19,9 +19,8 @@ export default function StudyCenterPage() {
                     queryParams += `&departmentId=${deptId}`;
                 }
 
-                // Assuming 'Branch' or custom doctype 'Study Center'
-                // Using 'Branch' as a fallback if specific Study Center doctype missing
-                const res = await fetch(`/api/resource/branch${queryParams}`);
+                // Using 'studycenter' doctype
+                const res = await fetch(`/api/resource/studycenter${queryParams}`);
                 const json = await res.json();
                 const data = json.data || [];
 
@@ -29,7 +28,7 @@ export default function StudyCenterPage() {
                     total: data.length,
                 });
 
-                setCenters(data.slice(0, 10));
+                setCenters(data);
 
             } catch (e) {
                 console.error(e);
@@ -44,17 +43,17 @@ export default function StudyCenterPage() {
         <div className="space-y-8 pb-20 text-[#1d2129]">
             <Workspace
                 title="Study Centers"
-                newHref="/branch/new"
+                newHref="/studycenter/new"
                 newLabel="Add Center"
                 summaryItems={[
-                    { label: 'Total Centers', value: loading ? '...' : counts.total || 0, color: 'text-blue-500', doctype: 'branch' },
+                    { label: 'Total Centers', value: loading ? '...' : counts.total || 0, color: 'text-blue-500', doctype: 'studycenter' },
                 ]}
                 masterCards={[
-                    { label: 'All Centers', icon: Building, count: counts.total || 0, href: '/branch' },
+                    { label: 'All Centers', icon: Building, count: counts.total || 0, href: '/studycenter' },
                     { label: 'Staff', icon: Users, count: 'Manage', href: '/employee' },
                 ]}
                 shortcuts={[
-                    { label: 'Add New Center', href: '/branch/new' },
+                    { label: 'Add New Center', href: '/studycenter/new' },
                     { label: 'View Map', href: '/branch-map' },
                 ]}
             />
@@ -66,7 +65,7 @@ export default function StudyCenterPage() {
                             <Building size={18} className="text-orange-600" />
                             Active Study Centers
                         </h3>
-                        <Link to="/branch" className="text-blue-600 text-[12px] font-medium hover:underline flex items-center gap-1">
+                        <Link to="/studycenter" className="text-blue-600 text-[12px] font-medium hover:underline flex items-center gap-1">
                             View All <ArrowRight size={14} />
                         </Link>
                     </div>
@@ -81,12 +80,37 @@ export default function StudyCenterPage() {
                                             <MapPin size={16} />
                                         </div>
                                         <div>
-                                            <p className="text-[13px] font-bold text-[#1d2129]">{center.branch || center.name || 'Center Name'}</p>
-                                            <p className="text-[11px] text-gray-500">{center.address || 'No address provided'}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-[14px] font-bold text-[#1d2129]">{center.centerName || 'Center Name'}</p>
+                                                {(center.username || center.password) && (
+                                                    <div className="flex items-center gap-1.5 ml-2">
+                                                        <span className="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold border border-blue-100 flex items-center gap-1">
+                                                            <Users size={10} /> {center.username || '---'}
+                                                        </span>
+                                                        <span className="text-[9px] bg-gray-50 text-gray-700 px-1.5 py-0.5 rounded font-bold border border-gray-100 flex items-center gap-1">
+                                                            <Lock size={10} /> {center.password || '---'}
+                                                        </span>
+                                                        <Link to="/login" target="_blank" className="text-indigo-600 hover:text-indigo-800 p-0.5 hover:bg-indigo-50 rounded" title="Open Login Portal">
+                                                            <ExternalLink size={12} />
+                                                        </Link>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                                                <MapPin size={10} /> {center.location || 'No location provided'}
+                                            </p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <Link to={`/branch/${center.name}`} className="text-[11px] font-bold text-blue-600 hover:underline">View Details</Link>
+                                    <div className="flex items-center gap-3">
+                                        <Link
+                                            to="/login"
+                                            target="_blank"
+                                            className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-[12px] font-black shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2 no-underline"
+                                        >
+                                            <ExternalLink size={14} />
+                                            Center Login
+                                        </Link>
+                                        <Link to={`/studycenter/${center._id}`} className="text-[11px] font-bold text-blue-600 hover:underline">Edit</Link>
                                     </div>
                                 </div>
                             ))
@@ -99,8 +123,11 @@ export default function StudyCenterPage() {
                 <div className="relative z-10">
                     <h4 className="text-[16px] font-bold mb-4">Center Management</h4>
                     <div className="flex flex-wrap gap-3">
-                        <Link to="/branch/new" className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-[13px] font-medium backdrop-blur-sm transition-colors no-underline">
+                        <Link to="/studycenter/new" className="bg-white text-orange-600 px-4 py-2 rounded-lg text-[13px] font-bold shadow-sm hover:bg-orange-50 no-underline transition-all">
                             Add New Center
+                        </Link>
+                        <Link to="/login" className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-[13px] font-medium backdrop-blur-sm transition-colors no-underline border border-white/30">
+                            Open Login Portal
                         </Link>
                     </div>
                 </div>

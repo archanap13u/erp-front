@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Save, ArrowLeft, Building2, Briefcase, User, Mail, Lock, Calendar } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Workspace from '../../components/Workspace';
@@ -122,9 +122,32 @@ export default function EmployeeOnboardingNew() {
     };
 
     // Filter designations based on selected department
-    const filteredDesignations = formData.departmentId
-        ? designations.filter(d => d.departmentId === formData.departmentId || d.departmentId?._id === formData.departmentId)
-        : designations;
+    const filteredDesignations = useMemo(() => {
+        if (!formData.departmentId) return designations;
+
+        const selectedDept = departments.find(d => d._id === formData.departmentId);
+        const whitelist = selectedDept?.designations || [];
+        console.log('Onboarding - Dept Whitelist:', whitelist);
+
+        if (whitelist.length > 0) {
+            return designations.filter(d =>
+                whitelist.some((w: string) => w.toLowerCase() === d.title.toLowerCase())
+            );
+        }
+
+        // Fallback for legacy or non-whitelisted scenarios
+        return designations.filter(d =>
+            d.departmentId === formData.departmentId ||
+            d.departmentId?._id === formData.departmentId ||
+            (d.departmentName && d.departmentName === formData.department)
+        );
+    }, [formData.departmentId, designations, departments, formData.department]);
+
+    useEffect(() => {
+        if (formData.departmentId) {
+            console.log('Onboarding - Filtered Designations:', filteredDesignations);
+        }
+    }, [filteredDesignations, formData.departmentId]);
 
     return (
         <div className="space-y-8 pb-20 text-[#1d2129]">

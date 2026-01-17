@@ -22,8 +22,11 @@ export default function RecruitmentPage() {
                 const orgId = localStorage.getItem('organization_id');
                 const deptId = localStorage.getItem('department_id');
 
+                const userRole = localStorage.getItem('user_role');
+
                 let queryParams = `?organizationId=${orgId || ''}`;
-                if (deptId) {
+                // Strict isolation: Only filter by Dept ID for non-global admins
+                if (deptId && userRole !== 'SuperAdmin' && userRole !== 'OrganizationAdmin') {
                     queryParams += `&departmentId=${deptId}`;
                 }
 
