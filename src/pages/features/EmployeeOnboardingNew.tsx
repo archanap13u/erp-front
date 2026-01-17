@@ -176,7 +176,7 @@ export default function EmployeeOnboardingNew() {
                     <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-[13px] font-bold text-blue-800 flex items-center gap-2">
-                                <Briefcase size={16} /> Link to Vacancy (Job Opening)
+                                <Briefcase size={16} /> Link to Vacancy (Job Opening) <span className="text-red-500">*</span>
                             </label>
                             <Link
                                 to="/jobopening/new"
@@ -188,11 +188,12 @@ export default function EmployeeOnboardingNew() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <select
+                                required
                                 className="w-full border border-blue-200 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                                 value={formData.vacancy}
                                 onChange={handleVacancyChange}
                             >
-                                <option value="">Select a Vacancy to Auto-fill</option>
+                                <option value="">Select a Vacancy (Required)</option>
                                 {vacancies.map(v => (
                                     <option key={v._id} value={v._id}>
                                         {v.job_title} - {v.department} ({v.no_of_positions} positions)
