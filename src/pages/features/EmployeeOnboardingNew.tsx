@@ -34,14 +34,32 @@ export default function EmployeeOnboardingNew() {
             .then(json => setDepartments(json.data || []))
             .catch(console.error);
 
-        // Fetch Open Job Openings (Vacancies)
-        fetch(`/api/resource/jobopening?organizationId=${orgId}`)
-            .then(res => res.json())
-            .then(json => {
-                const openJobs = (json.data || []).filter((j: any) => j.status === 'Open');
-                setVacancies(openJobs);
-            })
-            .catch(console.error);
+        // Fetch Open Job Openings (Vacancies) and calculate remaining positions
+        Promise.all([
+            fetch(`/api/resource/jobopening?organizationId=${orgId}`).then(r => r.json()),
+            fetch(`/api/resource/employee?organizationId=${orgId}`).then(r => r.json())
+        ]).then(([jobsJson, empsJson]) => {
+            const jobs = jobsJson.data || [];
+            const employees = empsJson.data || [];
+
+            // Count hired per vacancy
+            const hiredPerVacancy: Record<string, number> = {};
+            for (const emp of employees) {
+                const jobId = emp.jobOpening?._id || emp.jobOpening;
+                if (jobId) {
+                    hiredPerVacancy[jobId] = (hiredPerVacancy[jobId] || 0) + 1;
+                }
+            }
+
+            // Annotate jobs with remaining positions
+            const annotatedJobs = jobs.filter((j: any) => j.status === 'Open').map((j: any) => ({
+                ...j,
+                hired: hiredPerVacancy[j._id] || 0,
+                remaining: (j.no_of_positions || 1) - (hiredPerVacancy[j._id] || 0)
+            }));
+
+            setVacancies(annotatedJobs);
+        }).catch(console.error);
 
         // Fetch All Designations (will filter client-side or we could fetch on dept change)
         fetch(`/api/resource/designation?organizationId=${orgId}`)
@@ -62,14 +80,20 @@ export default function EmployeeOnboardingNew() {
 
         if (vacancy) {
             // Auto-fill from Vacancy
-            // Find department object to get ID
-            const dept = departments.find(d => d.name === vacancy.department);
+            // Use stored departmentId if available, otherwise fallback to name match
+            const vacDeptId = vacancy.departmentId?._id || vacancy.departmentId;
+
+            // Find department object to ensure local state consistency
+            const dept = departments.find(d =>
+                (vacDeptId && d._id === vacDeptId) ||
+                d.name === vacancy.department
+            );
 
             setFormData(prev => ({
                 ...prev,
                 vacancy: vacancyId,
-                department: vacancy.department,
-                departmentId: dept ? dept._id : '', // Try to match dept name to ID if possible
+                department: vacancy.department, // Use the name from vacancy as display
+                departmentId: dept ? dept._id : (vacDeptId || ''), // Prefer matched ID, then raw ID
                 designation: vacancy.job_title
             }));
         } else {
@@ -102,6 +126,7 @@ export default function EmployeeOnboardingNew() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    jobOpening: formData.vacancy || undefined, // Map vacancy -> jobOpening for backend enforcement
                     organizationId: orgId
                 })
             });
@@ -122,25 +147,42 @@ export default function EmployeeOnboardingNew() {
     };
 
     // Filter designations based on selected department
+    // Designations are now auto-created when vacancies are posted, so we just filter by departmentId
     const filteredDesignations = useMemo(() => {
         if (!formData.departmentId) return designations;
 
         const selectedDept = departments.find(d => d._id === formData.departmentId);
-        const whitelist = selectedDept?.designations || [];
-        console.log('Onboarding - Dept Whitelist:', whitelist);
+        const deptName = selectedDept?.name || formData.department;
 
-        if (whitelist.length > 0) {
-            return designations.filter(d =>
-                whitelist.some((w: string) => w.toLowerCase() === d.title.toLowerCase())
-            );
+        // Filter designations that belong to this department (by ID or by matching the department's whitelist)
+        const whitelist = selectedDept?.designations || [];
+
+        // Get designations matching by departmentId
+        const byDeptId = designations.filter(d => {
+            const dId = d.departmentId?._id || d.departmentId;
+            return dId && String(dId) === String(formData.departmentId);
+        });
+
+        // Also include designations matching the department's whitelist
+        const byWhitelist = whitelist.length > 0
+            ? designations.filter(d =>
+                whitelist.some((w: string) => w?.toLowerCase() === d.title?.toLowerCase())
+            )
+            : [];
+
+        // Combine and dedupe
+        const combined = [...byDeptId];
+        const existingTitles = new Set(byDeptId.map(d => d.title?.toLowerCase()));
+
+        for (const d of byWhitelist) {
+            if (!existingTitles.has(d.title?.toLowerCase())) {
+                combined.push(d);
+                existingTitles.add(d.title?.toLowerCase());
+            }
         }
 
-        // Fallback for legacy or non-whitelisted scenarios
-        return designations.filter(d =>
-            d.departmentId === formData.departmentId ||
-            d.departmentId?._id === formData.departmentId ||
-            (d.departmentName && d.departmentName === formData.department)
-        );
+        console.log('Onboarding - Filtered Designations for', deptName, ':', combined);
+        return combined.length > 0 ? combined : designations;
     }, [formData.departmentId, designations, departments, formData.department]);
 
     useEffect(() => {
@@ -195,8 +237,12 @@ export default function EmployeeOnboardingNew() {
                             >
                                 <option value="">Select a Vacancy (Required)</option>
                                 {vacancies.map(v => (
-                                    <option key={v._id} value={v._id}>
-                                        {v.job_title} - {v.department} ({v.no_of_positions} positions)
+                                    <option
+                                        key={v._id}
+                                        value={v._id}
+                                        disabled={v.remaining <= 0}
+                                    >
+                                        {v.job_title} - {v.department} ({v.remaining > 0 ? `${v.remaining} remaining of ${v.no_of_positions}` : 'FILLED'})
                                     </option>
                                 ))}
                             </select>

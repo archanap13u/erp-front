@@ -35,6 +35,7 @@ export const fieldRegistry: { [key: string]: any[] } = {
     ],
     announcement: [
         { name: 'title', label: 'Title', type: 'text', required: true },
+        { name: 'department', label: 'Target Department (Select "All" for Everyone)', type: 'select', link: 'department', default: 'All' },
         { name: 'content', label: 'Content / Question', type: 'textarea', required: true },
         { name: 'type', label: 'Type', type: 'select', options: ['Announcement', 'Poll'], default: 'Announcement' },
         { name: 'poll_options_text', label: 'Poll Options (For Polls: Enter one option per line)', type: 'textarea' },
@@ -122,14 +123,16 @@ export const fieldRegistry: { [key: string]: any[] } = {
     ],
     jobopening: [
         { name: 'job_title', label: 'Job Title', type: 'text', required: true },
-        { name: 'department', label: 'Department', type: 'select', link: 'department' },
+        { name: 'departmentId', label: 'Department', type: 'select', link: 'department', required: true },
+        { name: 'department', label: 'Department Name', type: 'hidden' }, // Stores the name, auto-populated
         { name: 'no_of_positions', label: 'Number of Positions', type: 'number', required: true },
         { name: 'status', label: 'Status', type: 'select', options: ['Open', 'Closed', 'On Hold'], default: 'Open' },
         { name: 'description', label: 'Job Description', type: 'textarea' }
     ],
     'job-opening': [
         { name: 'job_title', label: 'Job Title', type: 'text', required: true },
-        { name: 'department', label: 'Department', type: 'select', link: 'department' },
+        { name: 'departmentId', label: 'Department', type: 'select', link: 'department', required: true },
+        { name: 'department', label: 'Department Name', type: 'hidden' },
         { name: 'no_of_positions', label: 'Number of Positions', type: 'number', required: true },
         { name: 'status', label: 'Status', type: 'select', options: ['Open', 'Closed', 'On Hold'], default: 'Open' },
         { name: 'description', label: 'Job Description', type: 'textarea' }

@@ -38,7 +38,7 @@ const MODULES = [
     {
         id: 'Finance',
         name: 'Finance & Accounts',
-        features: ['Invoices', 'Payments', 'Expenses', 'General Ledger', 'Taxation'],
+        features: ['Invoices', 'Payments', 'Expenses', 'General Ledger', 'Taxation', 'Announcements', 'Employee List'],
         color: 'text-emerald-600',
         bg: 'bg-emerald-50',
         border: 'border-emerald-100'
@@ -46,7 +46,7 @@ const MODULES = [
     {
         id: 'Operations',
         name: 'Education Ops',
-        features: ['University', 'Study Center', 'APPLICATIONS', 'Programs', 'Internal Marks', 'Employee List'],
+        features: ['University', 'Study Center', 'APPLICATIONS', 'Programs', 'Internal Marks', 'Employee List', 'Announcements'],
         color: 'text-orange-600',
         bg: 'bg-orange-50',
         border: 'border-orange-100'
@@ -54,7 +54,7 @@ const MODULES = [
     {
         id: 'Inventory',
         name: 'Inventory & Stock',
-        features: ['Stock Entry', 'Delivery Note', 'Item Management', 'Purchase Receipt', 'Warehouses', 'Suppliers'],
+        features: ['Stock Entry', 'Delivery Note', 'Item Management', 'Purchase Receipt', 'Warehouses', 'Suppliers', 'Announcements', 'Employee List'],
         color: 'text-amber-600',
         bg: 'bg-amber-50',
         border: 'border-amber-100'
@@ -62,7 +62,7 @@ const MODULES = [
     {
         id: 'CRM',
         name: 'CRM & Sales',
-        features: ['Leads', 'Deals', 'Customers', 'Touchpoints', 'Quotations', 'Sales Orders'],
+        features: ['Leads', 'Deals', 'Customers', 'Touchpoints', 'Quotations', 'Sales Orders', 'Announcements', 'Employee List'],
         color: 'text-blue-600',
         bg: 'bg-blue-50',
         border: 'border-blue-100'
@@ -70,7 +70,7 @@ const MODULES = [
     {
         id: 'Projects',
         name: 'Projects',
-        features: ['Projects', 'Tasks', 'Timesheets', 'Agile Board'],
+        features: ['Projects', 'Tasks', 'Timesheets', 'Agile Board', 'Announcements', 'Employee List'],
         color: 'text-pink-600',
         bg: 'bg-pink-50',
         border: 'border-pink-100'
@@ -78,7 +78,7 @@ const MODULES = [
     {
         id: 'Support',
         name: 'Helpdesk',
-        features: ['Tickets', 'Issues', 'Warranty Claims', 'Knowledge Base'],
+        features: ['Tickets', 'Issues', 'Warranty Claims', 'Knowledge Base', 'Announcements', 'Employee List'],
         color: 'text-cyan-600',
         bg: 'bg-cyan-50',
         border: 'border-cyan-100'
@@ -86,7 +86,7 @@ const MODULES = [
     {
         id: 'Assets',
         name: 'Asset Mgmt',
-        features: ['Asset Tracking', 'Maintenance', 'Depreciation'],
+        features: ['Asset Tracking', 'Maintenance', 'Depreciation', 'Announcements', 'Employee List'],
         color: 'text-slate-600',
         bg: 'bg-slate-50',
         border: 'border-slate-100'

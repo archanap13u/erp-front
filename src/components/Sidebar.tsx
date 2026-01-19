@@ -88,7 +88,7 @@ export default function Sidebar() {
 
     const allMenuItems = [
         // Core Dashboard Items (Role based, generally always visible for the role)
-        { icon: LayoutDashboard, label: 'Dashboard', href: '/employee-dashboard', roles: ['Employee'] },
+        { icon: LayoutDashboard, label: 'Dashboard', href: '/employee-dashboard', roles: ['Employee', 'DepartmentAdmin', 'HR', 'Operations', 'Finance', 'Inventory', 'CRM', 'Projects', 'Support', 'Assets'] },
         { icon: LayoutDashboard, label: 'Student Portal', href: '/student-dashboard', roles: ['Student'] },
         { icon: LayoutDashboard, label: 'Ops Workspace', href: '/ops-dashboard', roles: ['Operations'] },
         { icon: LayoutDashboard, label: 'Org Dashboard', href: '/organization-dashboard', roles: ['OrganizationAdmin'] },
@@ -104,7 +104,7 @@ export default function Sidebar() {
         { icon: ArrowLeftRight, label: 'Employee Transfer', href: '/employee-transfer', roles: ['HR'], feature: 'Employee Transfer' },
         { icon: UserCheck, label: 'Recruitment', href: '/jobopening', roles: ['HR'], feature: 'Recruitment' },
         { icon: Users, label: 'Employee Lifecycle', href: '/employee-lifecycle', roles: ['HR'], feature: 'Employee Lifecycle' },
-        { icon: ClipboardList, label: 'Job Applications', href: '/job-application', roles: ['HR'], feature: 'Job Application' },
+
         { icon: GraduationCap, label: 'STUDENTS', href: '/student', roles: ['HR', 'Operations', 'StudyCenter'], feature: 'STUDENTS' },
         { icon: Megaphone, label: 'Complaints', href: '/complaint', roles: ['HR'], feature: 'Employee Complaints' },
         { icon: School, label: 'Holidays', href: '/holiday', roles: ['HR', 'Operations'], feature: 'Holidays' },

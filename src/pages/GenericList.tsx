@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Search, Filter, MoreHorizontal, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, ArrowLeft, Trash2 } from 'lucide-react';
 import { fieldRegistry } from '../config/fields';
 
 export default function GenericList() {
@@ -8,8 +8,30 @@ export default function GenericList() {
     const navigate = useNavigate();
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [hiredCounts, setHiredCounts] = useState<Record<string, number>>({});
 
     const displayTitle = (doctype as string || '').replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (!window.confirm(`Are you sure you want to delete this ${displayTitle}?`)) return;
+
+        try {
+            const orgId = localStorage.getItem('organization_id');
+            const res = await fetch(`/api/resource/${doctype}/${id}?organizationId=${orgId}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                setData(prev => prev.filter(item => item._id !== id));
+            } else {
+                const err = await res.json();
+                alert(`Failed to delete: ${err.error || 'Unknown error'}`);
+            }
+        } catch (err) {
+            console.error('Error deleting record:', err);
+            alert('Failed to connect to server');
+        }
+    };
 
     useEffect(() => {
         if (!doctype) return;
@@ -42,7 +64,7 @@ export default function GenericList() {
         let url = `/api/resource/${doctype}?organizationId=${orgId || ''}`;
 
         // Don't silo Employees or Students by Department for HR/Admin roles
-        const isGlobalDoctype = ['employee', 'student'].includes(doctype || '');
+        const isGlobalDoctype = ['employee', 'student', 'jobopening'].includes(doctype || '');
         const isAdminOrHR = userRole === 'SuperAdmin' || userRole === 'OrganizationAdmin' || userRole === 'HR';
 
         if (!isGlobalDoctype || !isAdminOrHR) {
@@ -52,9 +74,30 @@ export default function GenericList() {
 
         fetch(url)
             .then(res => res.json())
-            .then(json => {
+            .then(async json => {
                 setData(json.data || []);
                 setLoading(false);
+
+                // For jobopening, fetch employees to calculate hired count per vacancy
+                if (doctype === 'jobopening' && json.data?.length > 0) {
+                    try {
+                        const empRes = await fetch(`/api/resource/employee?organizationId=${orgId}`);
+                        const empJson = await empRes.json();
+                        const employees = empJson.data || [];
+
+                        // Count employees per jobOpening
+                        const counts: Record<string, number> = {};
+                        for (const emp of employees) {
+                            const jobId = emp.jobOpening?._id || emp.jobOpening;
+                            if (jobId) {
+                                counts[jobId] = (counts[jobId] || 0) + 1;
+                            }
+                        }
+                        setHiredCounts(counts);
+                    } catch (err) {
+                        console.error('Failed to fetch employee counts:', err);
+                    }
+                }
             })
             .catch(err => {
                 console.error('Fetch error:', err);
@@ -114,7 +157,12 @@ export default function GenericList() {
                                 <th className="px-4 py-2 w-10"><input type="checkbox" className="rounded" /></th>
                                 <th className="px-4 py-2">Name</th>
                                 {doctype === 'employee' && <th className="px-4 py-2">Department</th>}
+                                {doctype === 'employee' && <th className="px-4 py-2">Designation</th>}
                                 {doctype === 'employee' && <th className="px-4 py-2">Reports To</th>}
+                                {doctype === 'jobopening' && <th className="px-4 py-2">Department</th>}
+                                {doctype === 'jobopening' && <th className="px-4 py-2">Positions</th>}
+                                {doctype === 'jobopening' && <th className="px-4 py-2">Hired</th>}
+                                {doctype === 'jobopening' && <th className="px-4 py-2">Remaining</th>}
                                 <th className="px-4 py-2">Status</th>
                                 <th className="px-4 py-2">Last Modified</th>
                                 <th className="px-4 py-2 w-10"></th>
@@ -143,7 +191,42 @@ export default function GenericList() {
                                         )}
                                         {doctype === 'employee' && (
                                             <td className="px-4 py-3 text-[#1d2129]">
+                                                {item.designation || '-'}
+                                            </td>
+                                        )}
+                                        {doctype === 'employee' && (
+                                            <td className="px-4 py-3 text-[#1d2129]">
                                                 {item.reportsToRole || (item.reportsTo?.employeeName ? item.reportsTo.employeeName : '-')}
+                                            </td>
+                                        )}
+                                        {doctype === 'jobopening' && (
+                                            <td className="px-4 py-3 text-[#1d2129]">
+                                                {item.department || '-'}
+                                            </td>
+                                        )}
+                                        {doctype === 'jobopening' && (
+                                            <td className="px-4 py-3 text-[#1d2129] font-medium">
+                                                {item.no_of_positions || 1}
+                                            </td>
+                                        )}
+                                        {doctype === 'jobopening' && (
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${(hiredCounts[item._id] || 0) >= (item.no_of_positions || 1)
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                    {hiredCounts[item._id] || 0}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {doctype === 'jobopening' && (
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${((item.no_of_positions || 1) - (hiredCounts[item._id] || 0)) <= 0
+                                                    ? 'bg-gray-100 text-gray-500'
+                                                    : 'bg-yellow-100 text-yellow-700'
+                                                    }`}>
+                                                    {Math.max(0, (item.no_of_positions || 1) - (hiredCounts[item._id] || 0))}
+                                                </span>
                                             </td>
                                         )}
                                         <td className="px-4 py-3">

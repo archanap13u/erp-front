@@ -75,7 +75,7 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                 const updated = { ...prev, organizationId: orgId };
                 const deptName = localStorage.getItem('department_name');
 
-                const isDepartmental = ['announcement', 'holiday', 'complaint', 'performancereview', 'attendance'].includes(doctype || '');
+                const isDepartmental = ['holiday', 'complaint', 'performancereview', 'attendance'].includes(doctype || '');
 
                 if (isDepartmental) {
                     if (storedDeptId) {
@@ -300,9 +300,28 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                                 {field.type === 'select' ? (
                                     <select
                                         className="w-full bg-[#f0f4f7] border border-[#d1d8dd] rounded px-3 py-1.5 text-[13px] focus:bg-white focus:border-blue-400 outline-none transition-all"
-                                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                        value={formData[field.name] || ''}
+                                        onChange={(e) => {
+                                            const newData = { ...formData, [field.name]: e.target.value };
+
+                                            // For departmentId field, also set department name
+                                            if (field.name === 'departmentId' && field.link === 'department') {
+                                                const selectedDept = (dynamicOptions[field.name] || []).find(
+                                                    opt => opt.value === e.target.value
+                                                );
+                                                if (selectedDept) {
+                                                    newData.department = selectedDept.label;
+                                                }
+                                            }
+
+                                            setFormData(newData);
+                                        }}
                                     >
                                         <option value="">Select...</option>
+                                        {/* Special All Option for Announcement Department */}
+                                        {doctype === 'announcement' && field.name === 'department' && (
+                                            <option value="All">All Departments</option>
+                                        )}
                                         {field.options && field.options.map((opt: string) => (
                                             <option key={opt} value={opt}>{opt}</option>
                                         ))}

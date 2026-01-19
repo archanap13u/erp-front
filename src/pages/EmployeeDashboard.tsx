@@ -8,6 +8,35 @@ export default function EmployeeDashboard() {
     const [holidays, setHolidays] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Use employee ID if available, otherwise fallback to username for voting checks
+    const voterId = empId || name;
+
+    const handleVote = async (annId: string, optionLabel: string) => {
+        try {
+            const orgId = localStorage.getItem('organization_id');
+            const res = await fetch(`/api/poll/announcement/${annId}/vote`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    optionLabel,
+                    employeeId: voterId,
+                    organizationId: orgId
+                })
+            });
+            const json = await res.json();
+            if (res.ok) {
+                setAnnouncements(prev => prev.map(a =>
+                    a._id === annId ? json.data : a
+                ));
+            } else {
+                alert(json.error || 'Failed to submit vote');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to connect to server');
+        }
+    };
+
     useEffect(() => {
         const storedName = localStorage.getItem('user_name');
         const storedId = localStorage.getItem('employee_id');
@@ -18,7 +47,12 @@ export default function EmployeeDashboard() {
             try {
                 const orgId = localStorage.getItem('organization_id');
                 const deptId = localStorage.getItem('department_id');
-                const query = `?organizationId=${orgId || ''}${deptId ? `&departmentId=${deptId}` : ''}`;
+                const userRole = localStorage.getItem('user_role');
+
+                // For regular employees/students, filter by department. 
+                // For Admins (HR, DeptAdmin, Ops), verify all announcements (Global access).
+                const isRestricted = userRole === 'Employee' || userRole === 'Student';
+                const query = `?organizationId=${orgId || ''}${isRestricted && deptId ? `&departmentId=${deptId}` : ''}`;
 
                 const [resAnn, resHol] = await Promise.all([
                     fetch(`/api/resource/announcement${query}`),
@@ -47,31 +81,39 @@ export default function EmployeeDashboard() {
     }, []);
 
     return (
-        <div className="space-y-8 pb-20 max-w-6xl mx-auto text-[#1d2129]">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#1d2129]">Welcome, {name}</h1>
-                    <p className="text-gray-500 mt-1">Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <h1 className="text-xl font-bold text-[#1d2129] flex items-center gap-2">
+                        Dashboard
+                        <span className="text-[12px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-black uppercase text-center min-w-[60px]">
+                            {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+                        </span>
+                    </h1>
+                    <p className="text-[13px] text-gray-400 mt-1">Welcome back, <span className="font-bold text-gray-600">{name}</span></p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="bg-white p-3 rounded-lg border border-[#d1d8dd] flex items-center gap-3 shadow-sm">
-                        <Clock size={20} className="text-blue-600" />
-                        <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Shift Status</p>
-                            <p className="text-[13px] font-semibold text-emerald-600">Successfully Logged In</p>
-                        </div>
+                {/* Profile Card / ID */}
+                <div className="bg-white px-4 py-2 rounded-xl border border-dashed border-gray-200 shadow-sm flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[12px]">
+                        {name.charAt(0)}
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Employee ID</p>
+                        <span className="font-bold text-[12px] text-gray-700">{empId || 'N/A'}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <section className="bg-white rounded-xl border border-[#d1d8dd] shadow-sm overflow-hidden">
-                        <div className="p-4 border-b border-[#f0f4f7] bg-[#f9fafb] flex items-center gap-2">
-                            <Megaphone size={18} className="text-blue-600" />
-                            <h2 className="text-[15px] font-bold">Latest Announcements</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Announcements Feed */}
+                <div className="lg:col-span-2 space-y-6">
+                    <section className="bg-white rounded-2xl border border-[#d1d8dd] shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-[#d1d8dd] bg-gradient-to-r from-gray-50 to-white flex items-center gap-2">
+                            <Megaphone size={16} className="text-blue-600" />
+                            <h2 className="font-bold text-[14px]">Announcements & Polls</h2>
                         </div>
-                        <div className="p-6 space-y-6 text-left">
+                        <div className="p-6">
                             {loading ? (
                                 <div className="animate-pulse space-y-4">
                                     <div className="h-4 bg-gray-100 rounded w-3/4"></div>
@@ -80,20 +122,70 @@ export default function EmployeeDashboard() {
                             ) : announcements.length === 0 ? (
                                 <p className="text-gray-400 italic text-center text-[13px]">No announcements available.</p>
                             ) : (
-                                announcements.map((ann, idx) => (
-                                    <div key={idx} className="group cursor-pointer">
-                                        <div className="flex items-start justify-between">
-                                            <h3 className="text-[14px] font-bold group-hover:text-blue-600 transition-colors">{ann.title}</h3>
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{new Date(ann.date || ann.createdAt).toLocaleDateString()}</span>
+                                announcements.map((ann, idx) => {
+                                    const isPoll = ann.type === 'Poll';
+                                    const hasVoted = isPoll && ann.voters?.includes(voterId);
+                                    const totalVotes = isPoll ? ann.pollOptions?.reduce((acc: number, opt: any) => acc + (opt.votes || 0), 0) : 0;
+
+                                    return (
+                                        <div key={idx} className="group">
+                                            <div className="flex items-start justify-between">
+                                                <h3 className="text-[14px] font-bold group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                                                    {ann.title}
+                                                    {isPoll && <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full">Poll</span>}
+                                                </h3>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase">{new Date(ann.date || ann.createdAt).toLocaleDateString()}</span>
+                                            </div>
+
+                                            <p className="text-[13px] text-gray-600 mt-2 leading-relaxed whitespace-pre-wrap">{ann.content}</p>
+
+                                            {/* Poll Interface */}
+                                            {isPoll && ann.pollOptions && (
+                                                <div className="mt-4 space-y-2">
+                                                    {ann.pollOptions.map((opt: any, optIdx: number) => {
+                                                        const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                                                        return (
+                                                            <div key={optIdx} className="relative">
+                                                                {hasVoted ? (
+                                                                    // Result View
+                                                                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-200 relative overflow-hidden">
+                                                                        <div
+                                                                            className="absolute top-0 left-0 h-full bg-blue-100 transition-all duration-500"
+                                                                            style={{ width: `${percent}%` }}
+                                                                        ></div>
+                                                                        <div className="relative flex justify-between items-center text-[12px] z-10 font-medium">
+                                                                            <span className="text-[#1d2129]">{opt.label}</span>
+                                                                            <span className="text-blue-700">{percent}% ({opt.votes})</span>
+                                                                            {/* Use check mark if user voted for this (requires tracking which option user voted for, which simplified model might not have per user, but for now just show results) */}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    // Voting View
+                                                                    <button
+                                                                        onClick={() => handleVote(ann._id, opt.label)}
+                                                                        className="w-full text-left p-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-[12px] font-medium flex items-center gap-2"
+                                                                    >
+                                                                        <div className="w-3 h-3 rounded-full border border-gray-400"></div>
+                                                                        {opt.label}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {hasVoted && (
+                                                        <p className="text-[11px] text-gray-400 mt-1 italic">You have voted on this poll.</p>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <div className="mt-3 flex items-center gap-2">
+                                                <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 text-[8px] flex items-center justify-center font-bold">HR</div>
+                                                <span className="text-[11px] text-gray-400">Post by {ann.postedBy || 'Admin'}</span>
+                                            </div>
+                                            {idx !== announcements.length - 1 && <hr className="mt-6 border-[#f0f4f7]" />}
                                         </div>
-                                        <p className="text-[13px] text-gray-600 mt-2 leading-relaxed">{ann.content}</p>
-                                        <div className="mt-3 flex items-center gap-2">
-                                            <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 text-[8px] flex items-center justify-center font-bold">HR</div>
-                                            <span className="text-[11px] text-gray-400">Post by {ann.postedBy || 'Admin'}</span>
-                                        </div>
-                                        {idx !== announcements.length - 1 && <hr className="mt-6 border-[#f0f4f7]" />}
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </section>

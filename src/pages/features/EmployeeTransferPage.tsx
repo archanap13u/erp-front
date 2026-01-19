@@ -10,6 +10,7 @@ export default function EmployeeTransferPage() {
     const [employees, setEmployees] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [designations, setDesignations] = useState<any[]>([]);
+    const [vacancies, setVacancies] = useState<any[]>([]);
     const [managers, setManagers] = useState<any[]>([]);
 
     const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -42,6 +43,12 @@ export default function EmployeeTransferPage() {
         fetch(`/api/resource/designation?organizationId=${orgId}`)
             .then(res => res.json())
             .then(json => setDesignations(json.data || []))
+            .catch(console.error);
+
+        // Fetch Vacancies (Job Openings) - their job_titles serve as designations for their departments
+        fetch(`/api/resource/jobopening?organizationId=${orgId}`)
+            .then(res => res.json())
+            .then(json => setVacancies(json.data || []))
             .catch(console.error);
 
         // Fetch Managers (All Active Employees)
@@ -113,9 +120,41 @@ export default function EmployeeTransferPage() {
     };
 
     // Filter designations based on NEW selected department
-    const filteredDesignations = formData.newDepartmentId
-        ? designations.filter(d => d.departmentId === formData.newDepartmentId || d.departmentId?._id === formData.newDepartmentId)
-        : [];
+    // Designations are now auto-created when vacancies are posted, so we just filter by departmentId
+    const filteredDesignations = (() => {
+        if (!formData.newDepartmentId) return [];
+
+        // Get designations matching by departmentId
+        const byDeptId = designations.filter(d => {
+            const deptId = d.departmentId && typeof d.departmentId === 'object'
+                ? (d.departmentId as any)._id
+                : d.departmentId;
+            return String(deptId) === String(formData.newDepartmentId);
+        });
+
+        // Also check if the selected department has an embedded designations array (whitelist)
+        const selectedDept = departments.find(d => d._id === formData.newDepartmentId);
+        const embeddedDesignations = selectedDept?.designations || [];
+
+        // Convert embedded string designations to objects with title property for consistency
+        const fromDeptEmbedded = embeddedDesignations.map((title: string, idx: number) => ({
+            _id: `embedded-${idx}`,
+            title: title
+        }));
+
+        // Combine both sources, avoiding duplicates
+        const combined = [...byDeptId];
+        const existingTitles = new Set(byDeptId.map(d => d.title?.toLowerCase()));
+
+        for (const embedded of fromDeptEmbedded) {
+            if (!existingTitles.has(embedded.title?.toLowerCase())) {
+                combined.push(embedded);
+                existingTitles.add(embedded.title?.toLowerCase());
+            }
+        }
+
+        return combined;
+    })();
 
     return (
         <div className="space-y-8 pb-20 text-[#1d2129]">
