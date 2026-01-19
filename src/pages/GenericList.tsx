@@ -65,7 +65,7 @@ export default function GenericList() {
 
         // Don't silo Employees or Students by Department for HR/Admin roles
         const isGlobalDoctype = ['employee', 'student', 'jobopening'].includes(doctype || '');
-        const isAdminOrHR = userRole === 'SuperAdmin' || userRole === 'OrganizationAdmin' || userRole === 'HR';
+        const isAdminOrHR = userRole === 'SuperAdmin' || userRole === 'OrganizationAdmin' || userRole === 'HR' || userRole === 'Operations';
 
         if (!isGlobalDoctype || !isAdminOrHR) {
             if (deptId) url += `&departmentId=${deptId}`;
@@ -163,6 +163,8 @@ export default function GenericList() {
                                 {doctype === 'jobopening' && <th className="px-4 py-2">Positions</th>}
                                 {doctype === 'jobopening' && <th className="px-4 py-2">Hired</th>}
                                 {doctype === 'jobopening' && <th className="px-4 py-2">Remaining</th>}
+                                {(doctype === 'announcement' || doctype === 'opsannouncement') && <th className="px-4 py-2">Target Center</th>}
+                                {doctype === 'announcement' && <th className="px-4 py-2">Department</th>}
                                 <th className="px-4 py-2">Status</th>
                                 <th className="px-4 py-2">Last Modified</th>
                                 <th className="px-4 py-2 w-10"></th>
@@ -227,6 +229,16 @@ export default function GenericList() {
                                                     }`}>
                                                     {Math.max(0, (item.no_of_positions || 1) - (hiredCounts[item._id] || 0))}
                                                 </span>
+                                            </td>
+                                        )}
+                                        {(doctype === 'announcement' || doctype === 'opsannouncement') && (
+                                            <td className="px-4 py-3 text-[#1d2129] font-medium">
+                                                {item.targetCenter || '-'}
+                                            </td>
+                                        )}
+                                        {doctype === 'announcement' && (
+                                            <td className="px-4 py-3 text-[#1d2129]">
+                                                {item.department || '-'}
                                             </td>
                                         )}
                                         <td className="px-4 py-3">

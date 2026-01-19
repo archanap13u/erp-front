@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Megaphone, Bell, Pin, ArrowRight, Users, Edit, Trash2, Building2 } from 'lucide-react';
+import PollWidget from '../../components/PollWidget';
 import Workspace from '../../components/Workspace';
 import { Link, useLocation } from 'react-router-dom';
 
-export default function AnnouncementsPage() {
+interface AnnouncementsPageProps {
+    doctype?: string;
+}
+
+export default function AnnouncementsPage({ doctype: propDoctype }: AnnouncementsPageProps) {
+    const params = new URLSearchParams(useLocation().search);
+    const doctype = propDoctype || 'announcement';
     const [announcements, setAnnouncements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'active' | 'archive'>('active');
@@ -12,41 +19,9 @@ export default function AnnouncementsPage() {
     const userCenterName = localStorage.getItem('study_center_name');
     const location = useLocation();
 
-    // Context from URL
-    const params = new URLSearchParams(location.search);
     const queryDeptName = params.get('department');
     const queryDeptId = params.get('departmentId');
 
-    const handleVote = async (announcementId: string, optionLabel: string) => {
-        try {
-            const empId = localStorage.getItem('employee_id'); // Assuming we store this
-            if (!empId) {
-                alert("Employee ID not found. Please log in again.");
-                return;
-            }
-
-            const res = await fetch(`/api/resource/announcement/${announcementId}/vote`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ optionLabel, employeeId: empId })
-            });
-
-            if (res.ok) {
-                // Refresh data
-                const orgId = localStorage.getItem('organization_id');
-                const deptId = queryDeptId || localStorage.getItem('department_id');
-                const deptName = queryDeptName || localStorage.getItem('department_name');
-                const query = `?organizationId=${orgId || ''}${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
-                const resRefresh = await fetch(`/api/resource/announcement${query}`);
-                const json = await resRefresh.json();
-                setAnnouncements((json.data || []).slice(0, 15));
-            } else {
-                alert("Failed to record vote. You may have already voted.");
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this announcement?')) return;
@@ -63,78 +38,105 @@ export default function AnnouncementsPage() {
         }
     };
 
+    // Targeted Filtering for Study Centers
     const filteredAnnouncements = announcements.filter(ann => {
-        if (!ann.endDate) return filter === 'active'; // Legacy check
         const now = new Date();
-        const end = new Date(ann.endDate);
-        if (filter === 'active') return now <= end;
-        if (filter === 'archive') return now > end;
+        const start = ann.startDate ? new Date(ann.startDate) : null;
+        const end = ann.endDate ? new Date(ann.endDate) : null;
 
-        // Targeted Filtering for Study Centers
-        if (userRole === 'StudyCenter') {
-            // Show if target is 'All', or matches Name, or matches ID (resolved)
-            const isTargeted = ann.targetCenter === 'All' || ann.targetCenter === userCenterName || ann.targetCenter === userCenterId;
-            if (!isTargeted) return false;
+        let isTimeActive = true;
+        if (filter === 'active') {
+            isTimeActive = !!((!start || now >= start) && (!end || now <= end));
+        } else if (filter === 'archive') {
+            isTimeActive = !!(end && now > end);
         }
 
-        return true;
+        if (userRole === 'StudyCenter') {
+            const target = (ann.targetCenter || '').toString().trim().toLowerCase();
+            const currentCenter = (userCenterName || '').toString().trim().toLowerCase();
+            const currentId = (userCenterId || '').toString().toLowerCase();
+
+            if (target === 'none' || !target) return false;
+
+            const nameMatch = target === currentCenter;
+            const idMatch = !!(currentId && (target === currentId));
+
+            const isTargeted = nameMatch || idMatch;
+
+            if (isTimeActive && isTargeted) {
+                console.log(`[Diagnostic] PAGE MATCH: "${ann.title}" | Target: "${target}" | Reason: ${nameMatch ? 'Exact Name' : 'ID'}`);
+            }
+
+            return isTimeActive && isTargeted;
+        }
+
+        return isTimeActive;
     });
 
 
 
-    // Resolve Center ID if missing
+    // Unified Effect for Data Fetching and ID Resolution
     useEffect(() => {
         const resolveId = async () => {
             if (userRole === 'StudyCenter' && !userCenterId && userCenterName) {
+                const orgId = localStorage.getItem('organization_id');
+                console.log(`[Diagnostic] AnnouncementsPage Resolve for "${userCenterName}"`);
                 try {
-                    const orgId = localStorage.getItem('organization_id');
                     const res = await fetch(`/api/resource/studycenter?organizationId=${orgId || ''}`);
                     const json = await res.json();
-                    const found = (json.data || []).find((c: any) => c.centerName === userCenterName);
-                    if (found) setUserCenterId(found._id);
+                    const centers = json.data || [];
+
+                    const searchStr = userCenterName.trim().toLowerCase();
+                    const found = centers.find((c: any) => {
+                        const dbName = (c.centerName || '').toString().trim().toLowerCase();
+                        const dbUser = (c.username || '').toString().trim().toLowerCase();
+                        return dbName === searchStr || dbUser === searchStr;
+                    });
+
+                    if (found) {
+                        console.log('[Diagnostic] Resolved ID:', found._id);
+                        setUserCenterId(found._id);
+                    }
                 } catch (e) {
-                    console.error(e);
+                    console.error('[Diagnostic] Resolve Error:', e);
                 }
             }
         };
-        resolveId();
-    }, [userRole, userCenterId, userCenterName]);
 
-    useEffect(() => {
-        async function fetchData() {
+        const fetchData = async () => {
             try {
                 const orgId = localStorage.getItem('organization_id');
-                const userRoleFromStorage = localStorage.getItem('user_role');
                 const deptIdFromStorage = localStorage.getItem('department_id');
                 const deptNameFromStorage = localStorage.getItem('department_name');
 
                 let deptId = queryDeptId || deptIdFromStorage;
                 let deptName = queryDeptName || deptNameFromStorage;
 
-                // Fallback for Admins without query params
-                if (!deptName && (userRoleFromStorage === 'OrganizationAdmin' || userRoleFromStorage === 'SuperAdmin')) {
-                    const path = location.pathname;
-                    if (path.startsWith('/hr') || path.startsWith('/employee') || path.startsWith('/jobopening') || path.startsWith('/attendance') || path.startsWith('/holiday')) {
-                        deptName = 'Human Resources';
-                    } else if (path.startsWith('/ops-dashboard') || path.startsWith('/student') || path.startsWith('/university') || path.startsWith('/program') || path.startsWith('/studycenter')) {
-                        deptName = 'Operations';
-                    } else if (path.startsWith('/finance') || path.startsWith('/salesinvoice') || path.startsWith('/payment') || path.startsWith('/expense')) {
-                        deptName = 'Finance';
-                    }
+                if (userRole === 'StudyCenter' || doctype === 'opsannouncement') {
+                    // Centers only see Ops announcements by default, or if explicitly requested as opsannouncement
+                    const res = await fetch(`/api/resource/opsannouncement?organizationId=${orgId || ''}`);
+                    const json = await res.json();
+                    console.log(`[Diagnostic] Fetched ${json.data?.length || 0} Ops Announcements`);
+                    setAnnouncements(json.data || []);
+                } else {
+                    const query = `?organizationId=${orgId || ''}${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
+                    const res = await fetch(`/api/resource/announcement${query}`);
+                    const json = await res.json();
+                    setAnnouncements(json.data || []);
                 }
-
-                const query = `?organizationId=${orgId || ''}${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
-                const res = await fetch(`/api/resource/announcement${query}`);
-                const json = await res.json();
-                setAnnouncements(json.data || []);
             } catch (e) {
                 console.error(e);
             } finally {
                 setLoading(false);
             }
-        }
-        fetchData();
-    }, [queryDeptName, queryDeptId]);
+        };
+
+        const run = async () => {
+            await resolveId();
+            await fetchData();
+        };
+        run();
+    }, [userRole, userCenterId, userCenterName, queryDeptName, queryDeptId]);
 
     return (
         <div className="space-y-8 pb-20 text-[#1d2129]">
@@ -216,33 +218,15 @@ export default function AnnouncementsPage() {
                             <p className="text-[13px] text-gray-700 mb-4">{announcement.description || announcement.content || 'No description available.'}</p>
 
                             {/* Poll Rendering */}
-                            {announcement.type === 'Poll' && announcement.pollOptions && (
-                                <div className="mb-4 space-y-2">
-                                    {announcement.pollOptions.map((opt: any, optIdx: number) => {
-                                        const totalVotes = announcement.pollOptions.reduce((acc: number, curr: any) => acc + (curr.votes || 0), 0);
-                                        const percent = totalVotes > 0 ? Math.round(((opt.votes || 0) / totalVotes) * 100) : 0;
-                                        // Check if current user voted? For now, simplistic rendering. 
-                                        // Ideally we check if `announcement.voters` includes current user, but list API might not return full array or we don't have user ID in easy state.
-                                        // We will just show buttons that act as "Vote". After vote, backend rejects or we refresh.
-                                        return (
-                                            <div key={optIdx} className="relative">
-                                                <button
-                                                    onClick={() => handleVote(announcement._id, opt.label)}
-                                                    className="w-full text-left px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium transition-colors flex justify-between items-center relative z-10"
-                                                >
-                                                    <span>{opt.label}</span>
-                                                    <span className="text-gray-500 text-xs">{opt.votes || 0} votes ({percent}%)</span>
-                                                </button>
-                                                {/* Progress Bar Background */}
-                                                <div
-                                                    className="absolute top-0 left-0 h-full bg-blue-100/50 rounded-lg z-0 transition-all duration-500"
-                                                    style={{ width: `${percent}%` }}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                    <p className="text-[10px] text-gray-400 text-right">Click an option to vote</p>
-                                </div>
+                            {announcement.type === 'Poll' && (
+                                <PollWidget
+                                    announcement={announcement}
+                                    voterId={localStorage.getItem('employee_id') || localStorage.getItem('user_id') || 'unknown'}
+                                    doctype={doctype}
+                                    onVoteSuccess={(updated: any) => {
+                                        setAnnouncements(prev => prev.map(a => a._id === updated._id ? updated : a));
+                                    }}
+                                />
                             )}
 
                             <div className="flex items-center gap-4 text-[11px] text-gray-500">

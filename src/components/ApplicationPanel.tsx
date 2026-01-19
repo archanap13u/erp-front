@@ -34,7 +34,8 @@ export default function ApplicationPanel({ departmentId, organizationId: propOrg
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    const organizationId = propOrgId || localStorage.getItem('organization_id');
+    const storedOrgId = localStorage.getItem('organization_id');
+    const organizationId = propOrgId || ((storedOrgId === 'null' || storedOrgId === 'undefined') ? undefined : (storedOrgId || undefined));
 
     useEffect(() => {
         fetchData();

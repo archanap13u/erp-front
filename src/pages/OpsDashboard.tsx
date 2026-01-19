@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { School, Building2, BookOpen, GraduationCap, FileCheck, TrendingUp, Megaphone, CalendarDays, MapPin, Lock, ExternalLink, ArrowRight, UserPlus, Users, ClipboardList, Edit, Clock } from 'lucide-react';
+import { School, Building2, BookOpen, GraduationCap, FileCheck, TrendingUp, Megaphone, CalendarDays, MapPin, Lock, ExternalLink, ArrowRight, UserPlus, Users, ClipboardList, Edit, Clock, Pin } from 'lucide-react';
 import Workspace from '../components/Workspace';
 import { Link } from 'react-router-dom';
 import DepartmentStaffManager from '../components/DepartmentStaffManager';
@@ -7,7 +7,13 @@ import DepartmentStudentManager from '../components/DepartmentStudentManager';
 import ApplicationPanel from '../components/ApplicationPanel';
 
 export default function OpsDashboard() {
-    const [counts, setCounts] = useState<{ [key: string]: number }>({});
+    const [counts, setCounts] = useState<{ [key: string]: number }>({
+        university: 0,
+        student: 0,
+        application: 0,
+        studycenter: 0,
+        employee: 0
+    });
     const [loading, setLoading] = useState(true);
     const [centers, setCenters] = useState<any[]>([]);
     const [pendingStudents, setPendingStudents] = useState<any[]>([]);
@@ -17,6 +23,7 @@ export default function OpsDashboard() {
     const [employeeSearch, setEmployeeSearch] = useState('');
     const [departments, setDepartments] = useState<any[]>([]);
     const [contextData, setContextData] = useState<{ id?: string, name?: string }>({});
+    const [opsAnnouncements, setOpsAnnouncements] = useState<any[]>([]);
 
     // Get features from localStorage (set during login)
     const userFeaturesRaw = localStorage.getItem('user_features');
@@ -28,7 +35,12 @@ export default function OpsDashboard() {
     useEffect(() => {
         async function fetchData() {
             try {
-                const orgId = localStorage.getItem('organization_id');
+                const storedOrgId = localStorage.getItem('organization_id');
+                const orgId = (storedOrgId === 'null' || storedOrgId === 'undefined') ? null : storedOrgId;
+                if (!orgId) {
+                    setLoading(false);
+                    return;
+                }
                 const deptId = localStorage.getItem('department_id');
                 const deptName = localStorage.getItem('department_name');
                 const userRole = localStorage.getItem('user_role');
@@ -51,15 +63,16 @@ export default function OpsDashboard() {
                 if (effectiveDeptId) queryParams += `&departmentId=${effectiveDeptId}`;
                 // Removed name filter to avoid mismatch issues
 
-                const [resUni, resStd, resApp, resCen, resEmp] = await Promise.all([
+                const [resUni, resStd, resApp, resCen, resEmp, resOpsAnn] = await Promise.all([
                     fetch(`${baseUrl}/university${queryParams}`),
                     fetch(`${baseUrl}/student${queryParams}`),
                     fetch(`${baseUrl}/studentapplicant${queryParams}`),
                     fetch(`${baseUrl}/studycenter${queryParams}`),
-                    fetch(`${baseUrl}/employee${queryParams}`)
+                    fetch(`${baseUrl}/employee${queryParams}`),
+                    fetch(`${baseUrl}/opsannouncement${queryParams}`)
                 ]);
-                const [jsonUni, jsonStd, jsonApp, jsonCen, jsonEmp] = await Promise.all([
-                    resUni.json(), resStd.json(), resApp.json(), resCen.json(), resEmp.json()
+                const [jsonUni, jsonStd, jsonApp, jsonCen, jsonEmp, jsonOpsAnn] = await Promise.all([
+                    resUni.json(), resStd.json(), resApp.json(), resCen.json(), resEmp.json(), resOpsAnn.json()
                 ]);
 
                 setCounts({
@@ -71,6 +84,7 @@ export default function OpsDashboard() {
                 });
                 setEmployees(jsonEmp.data || []);
                 setCenters(jsonCen.data || []);
+                setOpsAnnouncements(jsonOpsAnn.data || []);
 
                 // Store all students
                 const allStds = jsonStd.data || [];
@@ -93,7 +107,7 @@ export default function OpsDashboard() {
         { icon: BookOpen, label: 'Programs', count: '', href: '/program', feature: 'Programs' },
         { icon: ClipboardList, label: 'APPLICATIONS', count: '', href: '/studentapplicant', feature: 'APPLICATIONS' },
         { icon: GraduationCap, label: 'STUDENTS', count: '', href: '/student', feature: 'STUDENTS' },
-        { icon: Megaphone, label: 'Announcements', count: '', href: `/announcement?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}`, feature: 'Announcements' },
+        { icon: Megaphone, label: 'Ops Announcements', count: '', href: `/opsannouncement?department=${encodeURIComponent(contextData.name || 'Operations')}&departmentId=${contextData.id || ''}`, feature: 'Announcements' },
     ];
 
     const allShortcuts = [
@@ -101,7 +115,7 @@ export default function OpsDashboard() {
         { label: 'Add University', href: '/university/new', feature: 'University' },
         { label: 'Add Program', href: '/program/new', feature: 'Programs' },
         { label: 'Add Study Center', href: '/studycenter/new', feature: 'Study Center' },
-        { label: 'Post Announcement', href: `/announcement/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}`, feature: 'Announcements' },
+        { label: 'Post Ops Announcement', href: `/opsannouncement/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}`, feature: 'Announcements' },
         { label: 'Login Portal URL', href: '/login', feature: 'Study Center' },
     ];
 
@@ -114,16 +128,69 @@ export default function OpsDashboard() {
                 title="Ops Dashboard"
                 newHref="/student/new"
                 summaryItems={[
-                    { label: 'Prospective APPLICATIONS', value: '', color: 'text-blue-500', doctype: 'studentapplicant' },
-                    { label: 'Center Students', value: '', color: 'text-indigo-500', doctype: 'student' },
-                    { label: 'Pending Verifications', value: '', color: 'text-rose-500', doctype: 'student' },
-                    { label: 'Total STUDENTS', value: '', color: 'text-emerald-500', doctype: 'student' },
+                    { label: 'Prospective APPLICATIONS', value: counts.application.toString(), color: 'text-blue-500', doctype: 'studentapplicant' },
+                    { label: 'Center Students', value: centerStudentsCount.toString(), color: 'text-indigo-500', doctype: 'student' },
+                    { label: 'Pending Verifications', value: pendingStudents.length.toString(), color: 'text-rose-500', doctype: 'student' },
+                    { label: 'Total STUDENTS', value: counts.student.toString(), color: 'text-emerald-500', doctype: 'student' },
                 ]}
                 masterCards={masterCards}
                 shortcuts={shortcuts}
             />
 
-            <div className="max-w-6xl mx-auto space-y-6">
+            <div className="max-w-6xl mx-auto space-y-8">
+                {/* Recent Announcements Feed */}
+                <div className="bg-white p-6 rounded-2xl border border-[#d1d8dd] shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-[18px] font-bold text-[#1d2129] flex items-center gap-3">
+                            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center shadow-sm">
+                                <Megaphone size={20} />
+                            </div>
+                            Recent Ops Announcements
+                        </h3>
+                        <div className="flex items-center gap-4">
+                            <Link to="/opsannouncement/new" className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[12px] font-bold shadow-sm hover:scale-105 transition-transform no-underline">
+                                Post New
+                            </Link>
+                            <Link to="/opsannouncement" className="text-blue-600 font-bold text-[13px] hover:underline flex items-center gap-1">
+                                View Full Feed <ArrowRight size={14} />
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {opsAnnouncements.length === 0 ? (
+                            <div className="col-span-full py-12 text-center text-gray-400 italic text-[14px] bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                                No announcements posted yet for Centers.
+                            </div>
+                        ) : (
+                            opsAnnouncements.slice(0, 3).map((ann, idx) => (
+                                <div key={idx} className={`p-4 rounded-xl border border-[#d1d8dd] hover:shadow-md transition-all relative overflow-hidden flex flex-col h-full ${ann.pinned ? 'bg-orange-50/30 border-orange-200' : 'bg-white'}`}>
+                                    <div className="flex items-start justify-between mb-2">
+                                        <h4 className="text-[14px] font-bold text-gray-800 line-clamp-1">{ann.title}</h4>
+                                        <div className="flex items-center gap-1">
+                                            {ann.pinned && <Pin size={12} className="text-orange-500" />}
+                                            {ann.priority === 'High' && (
+                                                <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] font-black rounded uppercase">Urgent</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <p className="text-[12px] text-gray-600 line-clamp-3 mb-4 flex-1">
+                                        {ann.content || ann.description}
+                                    </p>
+                                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+                                        <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                                            {new Date(ann.createdAt).toLocaleDateString()}
+                                        </span>
+                                        <Link to={`/opsannouncement/${ann._id}`} className="text-blue-600 text-[11px] font-bold hover:underline">
+                                            Edit
+                                        </Link>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
                 {hasFeature('APPLICATIONS') && (
                     <div className="lg:col-span-3 space-y-4 mb-8">
                         <div className="flex items-center justify-between">
@@ -322,6 +389,7 @@ export default function OpsDashboard() {
             <div className="max-w-6xl mx-auto space-y-8">
                 <DepartmentStaffManager
                     departmentId={contextData.id}
+                    organizationId={localStorage.getItem('organization_id') || undefined}
                     title="Operations Team Access"
                     description="Manage credentials for operations staff."
                 />

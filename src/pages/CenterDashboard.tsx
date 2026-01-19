@@ -3,35 +3,75 @@ import { School, Building2, BookOpen, GraduationCap, FileCheck, TrendingUp, Mega
 import Workspace from '../components/Workspace';
 import { Link } from 'react-router-dom';
 import AnnouncementPopup from '../components/AnnouncementPopup';
+import PollWidget from '../components/PollWidget';
 
 export default function CenterDashboard() {
     const [counts, setCounts] = useState<{ [key: string]: number }>({});
     const [applications, setApplications] = useState<any[]>([]);
     const [students, setStudents] = useState<any[]>([]);
+    const [announcements, setAnnouncements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userCenterId, setUserCenterId] = useState(localStorage.getItem('study_center_id'));
     const [search, setSearch] = useState('');
     const centerName = localStorage.getItem('study_center_name');
 
     useEffect(() => {
-        async function fetchDashboardData() {
+        async function fetchDashboardData(resolvedId?: string) {
             try {
                 const orgId = localStorage.getItem('organization_id');
-                // Use studyCenter for isolation
                 let queryParams = `?organizationId=${orgId || ''}&studyCenter=${encodeURIComponent(centerName || '')}`;
 
-                const [resStd, resApp, resMarks] = await Promise.all([
+                const [resStd, resApp, resMarks, resAnn] = await Promise.all([
                     fetch(`/api/resource/student${queryParams}`),
                     fetch(`/api/resource/studentapplicant${queryParams}`),
-                    fetch(`/api/resource/internalmark${queryParams}`)
+                    fetch(`/api/resource/internalmark${queryParams}`),
+                    fetch(`/api/resource/opsannouncement?organizationId=${orgId || ''}`)
                 ]);
-                const [jsonStd, jsonApp, jsonMarks] = await Promise.all([
-                    resStd.json(), resApp.json(), resMarks.json()
+                const [jsonStd, jsonApp, jsonMarks, jsonAnn] = await Promise.all([
+                    resStd.json(), resApp.json(), resMarks.json(), resAnn.json()
                 ]);
 
                 const apps = jsonApp.data || [];
                 const stds = jsonStd.data || [];
+                const rawAnns = jsonAnn.data || [];
                 setApplications(apps);
                 setStudents(stds);
+
+                // --- Respective Filtering Logic with Diagnostic Logging ---
+                const currentCenter = (centerName || '').toString().trim().toLowerCase();
+                const currentId = (resolvedId || userCenterId || '').toString().toLowerCase();
+
+                console.log(`[Diagnostic] Dashboard Refresh for center: "${currentCenter}" (ID: "${currentId}")`);
+
+                const filteredAnns = rawAnns.filter((ann: any) => {
+                    const target = (ann.targetCenter || '').toString().trim().toLowerCase();
+                    if (target === 'none' || !target) return false;
+
+                    const now = new Date();
+                    const startDate = ann.startDate ? new Date(ann.startDate) : null;
+                    const endDate = ann.endDate ? new Date(ann.endDate) : null;
+                    if (startDate && now < startDate) return false;
+                    if (endDate && now > endDate) return false;
+
+                    const nameMatch = target === currentCenter;
+                    const idMatch = currentId && (target === currentId);
+
+                    const isVisible = !!(nameMatch || idMatch);
+
+                    if (isVisible) {
+                        console.log(`[Diagnostic] MATCH FOUND: "${ann.title}" | Target: "${target}" | Reason: ${nameMatch ? 'Exact Name' : 'ID'}`);
+                    }
+
+                    return isVisible;
+                }).sort((a: any, b: any) => {
+                    if (a.pinned && !b.pinned) return -1;
+                    if (!a.pinned && b.pinned) return 1;
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                });
+
+                console.log(`[Diagnostic] Filtered: ${filteredAnns.length} / ${rawAnns.length}`);
+                setAnnouncements(filteredAnns.slice(0, 3));
+                // -------------------------------------------------------------
 
                 setCounts({
                     student: stds.length,
@@ -48,7 +88,35 @@ export default function CenterDashboard() {
                 setLoading(false);
             }
         }
-        if (centerName) fetchDashboardData();
+
+        const resolveId = async () => {
+            const currentOrgId = localStorage.getItem('organization_id');
+            if (centerName) {
+                try {
+                    const res = await fetch(`/api/resource/studycenter?organizationId=${currentOrgId || ''}`);
+                    const json = await res.json();
+                    const centers = json.data || [];
+                    const searchStr = centerName.trim().toLowerCase();
+                    const found = centers.find((c: any) => {
+                        const dbName = (c.centerName || '').toString().trim().toLowerCase();
+                        const dbUser = (c.username || '').toString().trim().toLowerCase();
+                        return dbName === searchStr || dbUser === searchStr;
+                    });
+                    if (found) {
+                        setUserCenterId(found._id);
+                        localStorage.setItem('study_center_id', found._id);
+                        return found._id;
+                    }
+                } catch (e) { console.error(e); }
+            }
+            return userCenterId || undefined;
+        };
+
+        const run = async () => {
+            const id = await resolveId();
+            await fetchDashboardData(id);
+        };
+        if (centerName) run();
     }, [centerName]);
 
     const masterCards = [
@@ -100,7 +168,59 @@ export default function CenterDashboard() {
                 shortcuts={shortcuts}
             />
 
-            <div className="max-w-6xl mx-auto space-y-8">
+            <div className="max-w-6xl mx-auto space-y-8 text-[#1d2129]">
+                {/* Announcements Feed Section */}
+                <div className="bg-white p-6 rounded-2xl border border-[#d1d8dd] shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-[18px] font-bold text-[#1d2129] flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                                <Megaphone size={20} />
+                            </div>
+                            Important Announcements
+                        </h3>
+                        <Link to="/notifications" className="text-blue-600 font-bold text-[13px] hover:underline flex items-center gap-1">
+                            View All <ArrowRight size={14} />
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {loading ? (
+                            <div className="col-span-full py-12 flex justify-center">
+                                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        ) : announcements.length === 0 ? (
+                            <div className="col-span-full py-12 text-center text-gray-400 italic text-[14px] bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                                No active announcements from Operations.
+                            </div>
+                        ) : (
+                            announcements.map((ann, idx) => (
+                                <div key={idx} className={`p-4 rounded-xl border border-[#d1d8dd] hover:shadow-md transition-all relative overflow-hidden flex flex-col h-full ${ann.pinned ? 'bg-orange-50/30 border-orange-200' : 'bg-white'}`}>
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="text-[14px] font-bold text-gray-800 line-clamp-1">{ann.title}</h4>
+                                            {ann.type === 'Poll' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Poll</span>}
+                                        </div>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${ann.priority === 'High' ? 'bg-red-100 text-red-600' :
+                                                ann.priority === 'Medium' ? 'bg-yellow-100 text-yellow-600' :
+                                                    'bg-blue-100 text-blue-600'
+                                            }`}>{ann.priority}</span>
+                                    </div>
+                                    <p className="text-[12px] text-gray-600 line-clamp-3 mb-4 flex-1">
+                                        {ann.content || ann.description}
+                                    </p>
+                                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+                                        <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                                            {new Date(ann.createdAt).toLocaleDateString()}
+                                        </span>
+                                        <Link to="/notifications" className="text-blue-600 text-[11px] font-bold hover:underline">
+                                            Read More
+                                        </Link>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
 
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">

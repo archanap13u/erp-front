@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Megaphone, Pin, Clock, User } from 'lucide-react';
+import PollWidget from '../../components/PollWidget';
 import Workspace from '../../components/Workspace';
 
 export default function NotificationsPage() {
@@ -34,37 +35,49 @@ export default function NotificationsPage() {
                     }
                 }
 
-                const query = `?organizationId=${orgId}${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
+                const baseQuery = `?organizationId=${orgId}`;
+                const deptQuery = `${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
 
-                const res = await fetch(`/api/resource/announcement${query}`);
-                const json = await res.json();
-                const data = json.data || [];
+                // Determine distinct resource for Study Centers
+                let data = [];
+                if (userRole === 'StudyCenter') {
+                    // For Centers, we only fetch Operations announcements now
+                    const res = await fetch(`/api/resource/opsannouncement${baseQuery}`);
+                    const json = await res.json();
+                    data = json.data || [];
+                } else {
+                    const res = await fetch(`/api/resource/announcement${baseQuery}${deptQuery}`);
+                    const json = await res.json();
+                    data = json.data || [];
+                }
 
                 const now = new Date();
 
                 // Filter for announcements that target this center or 'All'
                 // and are currently active
+                const currentCenter = (userCenter || '').toString().trim().toLowerCase();
+                const currentId = (userCenterId || '').toString().toLowerCase();
+
                 const filtered = data.filter((ann: any) => {
-                    const isVisible = !ann.endDate || now <= new Date(ann.endDate);
+                    const target = (ann.targetCenter || '').toString().trim().toLowerCase();
+                    if (userRole === 'StudyCenter' && (target === 'none' || !target)) return false;
 
-                    const target = (ann.targetCenter || '').toString();
-                    const currentCenter = (userCenter || '').toString();
+                    const now = new Date();
+                    const startDate = ann.startDate ? new Date(ann.startDate) : null;
+                    const endDate = ann.endDate ? new Date(ann.endDate) : null;
 
-                    const nameMatch = target.toLowerCase() === 'all' || target.toLowerCase() === currentCenter.toLowerCase();
-                    const idMatch = ann.targetCenter === userCenterId;
+                    const isStarted = !startDate || now >= startDate;
+                    const isNotExpired = !endDate || now <= endDate;
+                    const isVisible = isStarted && isNotExpired;
+
+                    const nameMatch = target === currentCenter;
+                    const idMatch = !!(currentId && (target === currentId));
                     const roleMatch = userRole === 'Operations' || userRole === 'DepartmentAdmin';
 
                     const isTargeted = nameMatch || idMatch || roleMatch;
 
-                    // DEBUG LOG for first item
-                    if (data.indexOf(ann) === 0) {
-                        console.log('Filter Debug Item 0:', {
-                            title: ann.title,
-                            targetCenter: ann.targetCenter,
-                            userCenter,
-                            userCenterId,
-                            matches: { nameMatch, idMatch, roleMatch }
-                        });
+                    if (isVisible && isTargeted) {
+                        console.log(`[Diagnostic] NOTIFICATION MATCH: "${ann.title}" | Target: "${target}" | Reason: ${roleMatch ? 'Role' : (nameMatch ? 'Exact Name' : 'ID')}`);
                     }
 
                     return isVisible && isTargeted;
@@ -75,9 +88,10 @@ export default function NotificationsPage() {
                     return new Date(b.posting_date || b.createdAt).getTime() - new Date(a.posting_date || a.createdAt).getTime();
                 });
 
-                console.log('Raw Announcements Data:', data);
-                console.log('User Center:', userCenter, 'User Center ID:', userCenterId);
-                console.log('Filtered Notifications:', filtered);
+                console.log(`[Diagnostic] Center: "${userCenter}" | ID: "${userCenterId}" | Raw: ${data.length} | Filtered: ${filtered.length}`);
+                if (data.length > 0) {
+                    console.log('[Diagnostic] Announcement Target Examples:', data.slice(0, 3).map((a: any) => `"${a.targetCenter}"`));
+                }
                 setNotifications(filtered);
             } catch (e) {
                 console.error('Error fetching notifications:', e);
@@ -88,38 +102,48 @@ export default function NotificationsPage() {
 
         // Resolve Center ID if missing
         const resolveId = async () => {
-            console.log('DEBUG: Inside resolveId functionality');
             const userRole = localStorage.getItem('user_role');
             const userCenterName = localStorage.getItem('study_center_name');
+            const currentOrgId = localStorage.getItem('organization_id');
+
+            console.log(`[Resolve ID] Starting for: "${userCenterName}" (Role: ${userRole}, Org: ${currentOrgId})`);
 
             if (userRole === 'StudyCenter' && !userCenterId && userCenterName) {
                 try {
-                    const orgId = localStorage.getItem('organization_id');
-                    const res = await fetch(`/api/resource/studycenter?organizationId=${orgId || ''}`);
+                    const res = await fetch(`/api/resource/studycenter?organizationId=${currentOrgId || ''}`);
                     const json = await res.json();
-                    console.log('Resolving ID. Centers fetched:', json.data); // DEBUG
+                    const centers = json.data || [];
 
-                    const found = (json.data || []).find((c: any) =>
-                        (c.centerName || '').toLowerCase() === (userCenterName || '').toLowerCase()
-                    );
+                    console.log('[Diagnostic] DB Centers List:', centers.map((c: any) => `L:"${c.centerName}" ID:"${c._id}" U:"${c.username}"`));
+
+                    const searchStr = userCenterName.trim().toLowerCase();
+                    const found = centers.find((c: any) => {
+                        const dbName = (c.centerName || '').toString().trim().toLowerCase();
+                        const dbUser = (c.username || '').toString().trim().toLowerCase();
+                        return dbName === searchStr || dbUser === searchStr;
+                    });
 
                     if (found) {
-                        console.log('Found Center ID:', found._id); // DEBUG
+                        console.log('[Diagnostic] Resolve SUCCESS:', found.centerName, '->', found._id);
                         setUserCenterId(found._id);
-                        localStorage.setItem('study_center_id', found._id); // Save for future
+                        localStorage.setItem('study_center_id', found._id);
+                        return found._id;
                     } else {
-                        console.log('Center Name NOT FOUND in list:', userCenterName); // DEBUG
+                        console.warn('[Diagnostic] Resolve FAILED for:', userCenterName);
                     }
                 } catch (e) {
-                    console.error('Resolution Error:', e);
+                    console.error('[Diagnostic] Resolve ERROR:', e);
                 }
-            } else {
-                console.log('Skipping ID Resolution. Role:', userRole, 'Has ID:', !!userCenterId, 'Has Name:', !!userCenterName);
             }
+            return userCenterId;
         };
 
-        resolveId();
-        fetchNotifications();
+        const execute = async () => {
+            await resolveId();
+            await fetchNotifications();
+        };
+
+        execute();
     }, [userCenterId]);
 
     return (
@@ -166,6 +190,15 @@ export default function NotificationsPage() {
                                         <p className="text-[13px] text-gray-600 leading-relaxed mb-3">
                                             {notification.content || notification.description}
                                         </p>
+
+                                        <PollWidget
+                                            announcement={notification}
+                                            voterId={localStorage.getItem('study_center_id') || localStorage.getItem('employee_id') || localStorage.getItem('user_id') || 'unknown'}
+                                            doctype={localStorage.getItem('user_role') === 'StudyCenter' ? 'opsannouncement' : 'announcement'}
+                                            onVoteSuccess={(updated: any) => {
+                                                setNotifications(prev => prev.map(p => p._id === updated._id ? updated : p));
+                                            }}
+                                        />
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full flex items-center gap-1">

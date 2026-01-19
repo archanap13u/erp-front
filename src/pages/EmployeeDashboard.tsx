@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { UserCheck, CalendarDays, Megaphone, Clock, GraduationCap, Calendar } from 'lucide-react';
+import PollWidget from '../components/PollWidget';
 
 export default function EmployeeDashboard() {
     const [name, setName] = useState('');
@@ -11,31 +12,6 @@ export default function EmployeeDashboard() {
     // Use employee ID if available, otherwise fallback to username for voting checks
     const voterId = empId || name;
 
-    const handleVote = async (annId: string, optionLabel: string) => {
-        try {
-            const orgId = localStorage.getItem('organization_id');
-            const res = await fetch(`/api/poll/announcement/${annId}/vote`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    optionLabel,
-                    employeeId: voterId,
-                    organizationId: orgId
-                })
-            });
-            const json = await res.json();
-            if (res.ok) {
-                setAnnouncements(prev => prev.map(a =>
-                    a._id === annId ? json.data : a
-                ));
-            } else {
-                alert(json.error || 'Failed to submit vote');
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Failed to connect to server');
-        }
-    };
 
     useEffect(() => {
         const storedName = localStorage.getItem('user_name');
@@ -63,6 +39,7 @@ export default function EmployeeDashboard() {
                 // Filter announcements by date
                 const now = new Date();
                 const validAnnouncements = (jsonAnn.data || []).filter((a: any) => {
+                    if (a.department === 'None') return false;
                     if (!a.startDate || !a.endDate) return true; // Show if no dates set (legacy support)
                     const start = new Date(a.startDate);
                     const end = new Date(a.endDate);
@@ -139,43 +116,15 @@ export default function EmployeeDashboard() {
 
                                             <p className="text-[13px] text-gray-600 mt-2 leading-relaxed whitespace-pre-wrap">{ann.content}</p>
 
-                                            {/* Poll Interface */}
-                                            {isPoll && ann.pollOptions && (
-                                                <div className="mt-4 space-y-2">
-                                                    {ann.pollOptions.map((opt: any, optIdx: number) => {
-                                                        const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                                                        return (
-                                                            <div key={optIdx} className="relative">
-                                                                {hasVoted ? (
-                                                                    // Result View
-                                                                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-200 relative overflow-hidden">
-                                                                        <div
-                                                                            className="absolute top-0 left-0 h-full bg-blue-100 transition-all duration-500"
-                                                                            style={{ width: `${percent}%` }}
-                                                                        ></div>
-                                                                        <div className="relative flex justify-between items-center text-[12px] z-10 font-medium">
-                                                                            <span className="text-[#1d2129]">{opt.label}</span>
-                                                                            <span className="text-blue-700">{percent}% ({opt.votes})</span>
-                                                                            {/* Use check mark if user voted for this (requires tracking which option user voted for, which simplified model might not have per user, but for now just show results) */}
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    // Voting View
-                                                                    <button
-                                                                        onClick={() => handleVote(ann._id, opt.label)}
-                                                                        className="w-full text-left p-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-[12px] font-medium flex items-center gap-2"
-                                                                    >
-                                                                        <div className="w-3 h-3 rounded-full border border-gray-400"></div>
-                                                                        {opt.label}
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    {hasVoted && (
-                                                        <p className="text-[11px] text-gray-400 mt-1 italic">You have voted on this poll.</p>
-                                                    )}
-                                                </div>
+                                            {isPoll && (
+                                                <PollWidget
+                                                    announcement={ann}
+                                                    voterId={voterId}
+                                                    doctype="announcement"
+                                                    onVoteSuccess={(updated: any) => {
+                                                        setAnnouncements(prev => prev.map(p => p._id === updated._id ? updated : p));
+                                                    }}
+                                                />
                                             )}
 
                                             <div className="mt-3 flex items-center gap-2">

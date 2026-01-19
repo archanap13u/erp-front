@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Megaphone, Bell, Pin } from 'lucide-react';
+import PollWidget from './PollWidget';
 import { useLocation } from 'react-router-dom';
 
 export default function AnnouncementPopup() {
@@ -35,11 +36,21 @@ export default function AnnouncementPopup() {
                 // If no department context found but we are for an admin, we should perhaps restrict to 'All' by default to prevent leakage
                 // but for now let's just use the determined deptName.
 
-                const query = `?organizationId=${orgId}${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
+                const baseQuery = `?organizationId=${orgId}`;
+                const deptQuery = `${deptId ? `&departmentId=${deptId}` : ''}${deptName ? `&department=${encodeURIComponent(deptName)}` : ''}`;
 
-                const res = await fetch(`/api/resource/announcement${query}`);
-                const json = await res.json();
-                const data = json.data || [];
+                // Determine distinct resource for Study Centers
+                let data = [];
+                if (userRole === 'StudyCenter') {
+                    // For Centers, we only fetch Operations announcements now
+                    const res = await fetch(`/api/resource/opsannouncement${baseQuery}`);
+                    const json = await res.json();
+                    data = json.data || [];
+                } else {
+                    const res = await fetch(`/api/resource/announcement${baseQuery}${deptQuery}`);
+                    const json = await res.json();
+                    data = json.data || [];
+                }
 
                 // Fallback: If no ID in localstorage, find it from centers list (Robustness)
                 let resolvedCenterId = userCenterId;
@@ -47,8 +58,14 @@ export default function AnnouncementPopup() {
                     try {
                         const resCenters = await fetch(`/api/resource/studycenter?organizationId=${orgId}`);
                         const jsonCenters = await resCenters.json();
-                        const myCenter = (jsonCenters.data || []).find((c: any) => c.centerName === userCenter);
-                        if (myCenter) resolvedCenterId = myCenter._id;
+                        const centers = jsonCenters.data || [];
+                        const searchStr = userCenter.trim().toLowerCase();
+                        const found = centers.find((c: any) => {
+                            const dbName = (c.centerName || '').toString().trim().toLowerCase();
+                            const dbUser = (c.username || '').toString().trim().toLowerCase();
+                            return dbName === searchStr || dbUser === searchStr;
+                        });
+                        if (found) resolvedCenterId = found._id;
                     } catch (e) {
                         console.error('Failed to resolve center ID', e);
                     }
@@ -57,9 +74,35 @@ export default function AnnouncementPopup() {
                 const now = new Date();
 
                 // Filter for popups that target this center or 'All'
+                const currentCenter = (userCenter || '').toString().trim().toLowerCase();
+                const currentId = (userCenterId || '').toString().toLowerCase();
+                const currentResolvedId = (resolvedCenterId || '').toString().toLowerCase();
+
                 const popups = data.filter((ann: any) => {
-                    const isVisible = !ann.endDate || now <= new Date(ann.endDate);
-                    const isTargeted = ann.targetCenter === 'All' || ann.targetCenter === userCenter || ann.targetCenter === resolvedCenterId;
+                    if (ann.department === 'None') return false;
+
+                    const target = (ann.targetCenter || '').toString().trim().toLowerCase();
+
+                    if (userRole === 'StudyCenter' && (target === 'none' || !target)) return false;
+
+                    const now = new Date();
+                    const startDate = ann.startDate ? new Date(ann.startDate) : null;
+                    const endDate = ann.endDate ? new Date(ann.endDate) : null;
+
+                    const isStarted = !startDate || now >= startDate;
+                    const isNotExpired = !endDate || now <= endDate;
+                    const isVisible = isStarted && isNotExpired;
+
+                    const nameMatch = target === currentCenter;
+                    const idMatch = !!((currentId && target === currentId) || (currentResolvedId && target === currentResolvedId));
+                    const isTargeted = nameMatch || idMatch;
+
+                    if (isVisible && isTargeted && ann.showAsPopup) {
+                        console.log(`[Diagnostic] POPUP MATCH: "${ann.title}" | Target: "${target}" | Reason: ${nameMatch ? 'Exact Name' : 'ID'}`);
+                    }
+
+                    return isVisible && isTargeted;
+
                     const isPopup = ann.showAsPopup === true;
 
                     // Check if already seen in localStorage
@@ -68,6 +111,7 @@ export default function AnnouncementPopup() {
 
                     return isVisible && isTargeted && isPopup && isNew;
                 });
+
 
                 if (popups.length > 0) {
                     setAnnouncement(popups[0]); // Show the first unseen popup
@@ -122,6 +166,13 @@ export default function AnnouncementPopup() {
                         <p className="text-gray-600 text-[14px] leading-relaxed">
                             {announcement.content || announcement.description}
                         </p>
+
+                        <PollWidget
+                            announcement={announcement}
+                            voterId={localStorage.getItem('study_center_id') || localStorage.getItem('employee_id') || localStorage.getItem('user_id') || 'unknown'}
+                            doctype={localStorage.getItem('user_role') === 'StudyCenter' ? 'opsannouncement' : 'announcement'}
+                            onVoteSuccess={(updated: any) => setAnnouncement(updated)}
+                        />
                     </div>
 
                     <div className="mt-8 flex gap-3">

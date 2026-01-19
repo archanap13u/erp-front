@@ -33,12 +33,24 @@ export default function GenericEdit({ doctype: propDoctype }: GenericEditProps) 
             for (const field of fields) {
                 if (field.link && orgId) {
                     try {
-                        const res = await fetch(`/api/resource/${field.link}?organizationId=${orgId}`);
+                        const deptId = localStorage.getItem('department_id');
+                        const deptName = localStorage.getItem('department_name');
+                        let url = `/api/resource/${field.link}?organizationId=${orgId}`;
+                        if (deptId) url += `&departmentId=${deptId}`;
+                        if (deptName) url += `&department=${encodeURIComponent(deptName)}`;
+
+                        const res = await fetch(url);
                         const json = await res.json();
                         options[field.name] = (json.data || []).map((item: any) => ({
                             label: item.job_title || item.title || item.name || item.employeeName || item.studentName || item._id,
                             value: item._id || item.name // Ensure we use ID if available for reliable linking
                         }));
+
+                        // For Announcements, verify distinct 'All' and 'None' options
+                        if ((doctype === 'announcement' || doctype === 'opsannouncement') && (field.name === 'department' || field.name === 'targetCenter')) {
+                            options[field.name].unshift({ label: 'None', value: 'None' });
+                            options[field.name].unshift({ label: 'All', value: 'All' });
+                        }
                     } catch (e) {
                         console.error(`Error fetching options for ${field.name}`, e);
                     }
@@ -96,12 +108,17 @@ export default function GenericEdit({ doctype: propDoctype }: GenericEditProps) 
 
     const handleSave = async () => {
         setSaving(true);
+        const payload = { ...formData };
+        if (doctype === 'announcement' && (payload.department === 'All' || payload.department === 'None')) {
+            payload.departmentId = null;
+        }
+
         try {
             const orgId = localStorage.getItem('organization_id');
             const res = await fetch(`/api/resource/${doctype}/${id}?organizationId=${orgId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
             if (res.ok) {
                 navigate(`/${doctype}`);

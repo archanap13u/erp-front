@@ -26,14 +26,15 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
 
     // Sync poll options to text area
     useEffect(() => {
-        if (doctype === 'announcement') {
+        if (doctype === 'announcement' || doctype === 'opsannouncement') {
             const text = pollOptions.filter(o => o.trim()).join('\n');
             setFormData((prev: any) => ({ ...prev, poll_options_text: text }));
         }
     }, [pollOptions, doctype]);
 
     useEffect(() => {
-        const orgId = localStorage.getItem('organization_id');
+        const storedOrgId = localStorage.getItem('organization_id');
+        const orgId = (storedOrgId === 'null' || storedOrgId === 'undefined') ? null : storedOrgId;
         if (!orgId) return;
 
         const fetchDynamicOptions = async () => {
@@ -41,12 +42,26 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
             for (const field of fields) {
                 if (field.link) {
                     try {
-                        const res = await fetch(`/api/resource/${field.link}?organizationId=${orgId}`);
+                        const deptId = localStorage.getItem('department_id');
+                        const deptName = localStorage.getItem('department_name');
+                        let url = `/api/resource/${field.link}?organizationId=${orgId}`;
+                        if (deptId) url += `&departmentId=${deptId}`;
+                        if (deptName) url += `&department=${encodeURIComponent(deptName)}`;
+
+                        const res = await fetch(url);
                         const json = await res.json();
                         options[field.name] = (json.data || []).map((item: any) => ({
                             label: item.title || item.centerName || item.universityName || item.programName || item.job_title || item.name || item.employeeName || item.studentName || item._id,
                             value: field.link === 'designation' ? item.title : (item._id || item.name)
                         }));
+
+                        // For Announcements, verify distinct 'All' and 'None' options
+                        if ((doctype === 'announcement' || doctype === 'opsannouncement') && (field.name === 'department' || field.name === 'targetCenter')) {
+                            options[field.name].unshift({ label: 'None', value: 'None' });
+                            if (field.name === 'department') {
+                                options[field.name].unshift({ label: 'All', value: 'All' });
+                            }
+                        }
                     } catch (e) {
                         console.error(`Error fetching options for ${field.name}`, e);
                     }
@@ -75,7 +90,7 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                 const updated = { ...prev, organizationId: orgId };
                 const deptName = localStorage.getItem('department_name');
 
-                const isDepartmental = ['holiday', 'complaint', 'performancereview', 'attendance'].includes(doctype || '');
+                const isDepartmental = ['holiday', 'complaint', 'performancereview', 'attendance', 'studycenter', 'announcement', 'opsannouncement', 'program', 'university', 'jobopening'].includes(doctype || '');
 
                 if (isDepartmental) {
                     if (storedDeptId) {
@@ -97,11 +112,18 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                 if (studyCenter && userRole === 'StudyCenter') {
                     updated.studyCenter = studyCenter;
                 }
+
+                // Initialize defaults from fields config
+                fields.forEach(field => {
+                    if (field.default !== undefined && updated[field.name] === undefined) {
+                        updated[field.name] = field.default;
+                    }
+                });
+
                 return updated;
             });
         };
 
-        fetchDynamicOptions();
         fetchDynamicOptions();
     }, [doctype]);
 
@@ -144,12 +166,17 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
             return;
         }
 
+        const payload = { ...formData };
+        if ((doctype === 'announcement' || doctype === 'opsannouncement') && (payload.department === 'All' || payload.department === 'None')) {
+            payload.departmentId = null;
+        }
+
         setSaving(true);
         try {
             const res = await fetch(`/api/resource/${doctype}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
             if (res.ok) {
                 // If linked to an application, update its status
@@ -223,7 +250,7 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                     {fields.map((field, idx) => {
                         // Conditional visibility for Poll Options
-                        if (doctype === 'announcement' && field.name === 'poll_options_text' && formData.type !== 'Poll') {
+                        if ((doctype === 'announcement' || doctype === 'opsannouncement') && field.name === 'poll_options_text' && formData.type !== 'Poll') {
                             return null;
                         }
 

@@ -36,7 +36,8 @@ export default function Sidebar() {
 
     useEffect(() => {
         const currentRole = localStorage.getItem('user_role');
-        const currentOrgId = localStorage.getItem('organization_id');
+        const storedOrgId = localStorage.getItem('organization_id');
+        const currentOrgId = (storedOrgId === 'null' || storedOrgId === 'undefined') ? null : storedOrgId;
         const currentDeptId = localStorage.getItem('department_id');
         const storedFeatures = localStorage.getItem('user_features');
         setRole(currentRole);
@@ -108,7 +109,7 @@ export default function Sidebar() {
         { icon: GraduationCap, label: 'STUDENTS', href: '/student', roles: ['HR', 'Operations', 'StudyCenter'], feature: 'STUDENTS' },
         { icon: Megaphone, label: 'Complaints', href: '/complaint', roles: ['HR'], feature: 'Employee Complaints' },
         { icon: School, label: 'Holidays', href: '/holiday', roles: ['HR', 'Operations'], feature: 'Holidays' },
-        { icon: Megaphone, label: 'Announcements', href: '/announcement', roles: ['HR', 'Operations'], feature: 'Announcements' },
+        { icon: Megaphone, label: 'Announcements', href: '/announcement', roles: ['HR'], feature: 'Announcements' },
         { icon: TrendingUp, label: 'Performance', href: '/performancereview', roles: ['HR'], feature: 'Performance' },
         { icon: CalendarDays, label: 'Attendance', href: '/attendance', roles: ['HR', 'Employee', 'Student'], feature: 'Attendance' },
 

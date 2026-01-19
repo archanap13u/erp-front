@@ -62,6 +62,7 @@ export default function LoginPage() {
             if (data.success) {
                 localStorage.setItem('user_role', data.user.role);
                 localStorage.setItem('user_name', data.user.name);
+                localStorage.setItem('user_id', data.user.id || data.user._id);
                 if (data.user.employeeId) localStorage.setItem('employee_id', data.user.employeeId);
                 if (data.user.organizationId) localStorage.setItem('organization_id', data.user.organizationId);
                 if (data.user.departmentId) localStorage.setItem('department_id', data.user.departmentId);

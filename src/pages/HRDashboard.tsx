@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Workspace from '../components/Workspace';
 import CustomizationModal from '../components/CustomizationModal';
 import DepartmentStaffManager from '../components/DepartmentStaffManager';
+import PollWidget from '../components/PollWidget';
 
 export default function HRDashboard() {
     const [counts, setCounts] = useState<{ [key: string]: number }>({});
@@ -140,33 +141,6 @@ export default function HRDashboard() {
         }
     };
 
-    const handleVote = async (pollId: string, optionLabel: string) => {
-        const employeeId = localStorage.getItem('employee_id');
-        if (!employeeId) {
-            alert('You must be logged in as an employee to vote.');
-            return;
-        }
-
-        try {
-            const res = await fetch(`/api/poll/announcement/${pollId}/vote`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employeeId, optionLabel })
-            });
-
-            if (res.ok) {
-                const json = await res.json();
-                // Update local state
-                setPolls(prev => prev.map(p => p._id === pollId ? json.data : p));
-            } else {
-                const err = await res.json();
-                alert(err.error);
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Failed to submit vote');
-        }
-    };
 
     const handleDeleteAnnouncement = async (id: string) => {
         if (!confirm('Are you sure you want to delete this announcement?')) return;
@@ -282,58 +256,17 @@ export default function HRDashboard() {
                             </h3>
                         </div>
                         <div className="space-y-8">
-                            {polls.map((poll, idx) => {
-                                const employeeId = localStorage.getItem('employee_id');
-                                const totalVotes = poll.pollOptions.reduce((acc: number, curr: any) => acc + (curr.votes || 0), 0);
-                                const hasVoted = poll.voters?.includes(employeeId);
-
-                                return (
-                                    <div key={idx} className="space-y-4">
-                                        <div>
-                                            <h4 className="text-[15px] font-bold text-[#1d2129]">{poll.title}</h4>
-                                            <p className="text-[13px] text-gray-500 mt-1">{poll.content}</p>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {poll.pollOptions.map((opt: any, optIdx: number) => {
-                                                const percentage = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                                                return (
-                                                    <div key={optIdx} className="space-y-1">
-                                                        <div className="flex items-center justify-between text-[13px]">
-                                                            <span className="font-medium text-gray-700">{opt.label}</span>
-                                                            {hasVoted && <span className="font-bold text-gray-900">{percentage}%</span>}
-                                                        </div>
-                                                        <div className="relative h-2 bg-gray-100 rounded-full overflow-hidden cursor-pointer" onClick={() => !hasVoted && handleVote(poll._id, opt.label)}>
-                                                            {hasVoted && (
-                                                                <div
-                                                                    className="absolute top-0 left-0 h-full bg-purple-500 rounded-full transition-all duration-1000"
-                                                                    style={{ width: `${percentage}%` }}
-                                                                />
-                                                            )}
-                                                            {!hasVoted && (
-                                                                <div className="absolute top-0 left-0 h-full w-full hover:bg-purple-100 transition-colors" />
-                                                            )}
-                                                        </div>
-                                                        {!hasVoted && (
-                                                            <button
-                                                                onClick={() => handleVote(poll._id, opt.label)}
-                                                                className="text-[11px] font-bold text-purple-600 hover:text-purple-800"
-                                                            >
-                                                                Vote for this option
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                            {hasVoted && (
-                                                <div className="flex items-center gap-2 text-green-600 mt-2">
-                                                    <CheckCircle2 size={14} />
-                                                    <span className="text-[12px] font-bold uppercase tracking-wider">Voted</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            {polls.map((poll, idx) => (
+                                <PollWidget
+                                    key={idx}
+                                    announcement={poll}
+                                    voterId={localStorage.getItem('employee_id') || localStorage.getItem('user_id') || 'unknown'}
+                                    doctype="announcement"
+                                    onVoteSuccess={(updated: any) => {
+                                        setPolls(prev => prev.map(p => p._id === updated._id ? updated : p));
+                                    }}
+                                />
+                            ))}
                         </div>
                     </div>
                 )}

@@ -4,11 +4,13 @@ import { Shield, User, Lock, Search, Save, Check, AlertCircle, Eye, EyeOff, Chev
 
 interface DepartmentStaffManagerProps {
     departmentId?: string; // If provided, filters by this department. If null, might show all (for HR/SuperAdmin)
+    organizationId?: string;
     title?: string;
     description?: string;
 }
 
-export default function DepartmentStaffManager({ departmentId, title, description }: DepartmentStaffManagerProps) {
+export default function DepartmentStaffManager({ departmentId, organizationId: propOrgId, title, description }: DepartmentStaffManagerProps) {
+    const orgId = propOrgId || localStorage.getItem('organization_id');
     const [employees, setEmployees] = useState<any[]>([]);
     const [filteredEmployees, setFilteredEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
 
     const fetchDepartments = async () => {
         try {
-            const orgId = localStorage.getItem('organization_id');
+            if (!orgId) return;
             const res = await fetch(`/api/resource/department?organizationId=${orgId}`);
             const data = await res.json();
             if (data.success) setDepartments(data.data || []);
@@ -40,9 +42,9 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
     };
 
     const fetchData = async () => {
+        if (!orgId) return;
         setLoading(true);
         try {
-            const orgId = localStorage.getItem('organization_id');
             const userRole = localStorage.getItem('user_role');
             let url = `/api/resource/employee?organizationId=${orgId}`;
 
@@ -88,7 +90,6 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
         setError(null);
 
         try {
-            const orgId = localStorage.getItem('organization_id');
             const res = await fetch(`/api/resource/employee/${empId}?organizationId=${orgId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -138,7 +139,7 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
 
     // Fetch designations for a specific department (used in global view when selecting dept)
     const fetchFormDesignations = async (deptId: string) => {
-        const orgId = localStorage.getItem('organization_id');
+        if (!orgId) return;
         try {
             // Fetch all org designations
             const res = await fetch(`/api/resource/designation?organizationId=${orgId}`);
@@ -196,7 +197,7 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
     };
 
     const fetchAllDesignations = async () => {
-        const orgId = localStorage.getItem('organization_id');
+        if (!orgId) return;
         try {
             const res = await fetch(`/api/resource/designation?organizationId=${orgId}`);
             const data = await res.json();
@@ -215,9 +216,8 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
     }, [departmentId]);
 
     const fetchDesignations = async () => {
+        if (!orgId) return;
         try {
-            const orgId = localStorage.getItem('organization_id');
-
             // Fetch all organization designations
             const res = await fetch(`/api/resource/designation?organizationId=${orgId}`);
             const data = await res.json();
@@ -285,9 +285,8 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
 
     const handleCreateDesignation = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!orgId) return;
         try {
-            const orgId = localStorage.getItem('organization_id');
-
             // Create the designation
             const deptName = departments.find(d => d._id === departmentId)?.name;
             const res = await fetch(`/api/resource/designation?organizationId=${orgId}`, {
@@ -334,9 +333,8 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
     };
 
     const handleDeleteDesignation = async (id: string) => {
-        if (!confirm("Are you sure?")) return;
+        if (!confirm("Are you sure?") || !orgId) return;
         try {
-            const orgId = localStorage.getItem('organization_id');
             await fetch(`/api/resource/designation/${id}?organizationId=${orgId}`, { method: 'DELETE' });
             fetchDesignations();
         } catch (e) { console.error(e); }
@@ -344,9 +342,9 @@ export default function DepartmentStaffManager({ departmentId, title, descriptio
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!orgId) return;
         setLoading(true);
         try {
-            const orgId = localStorage.getItem('organization_id');
             // deptId might be passed as prop or from local storage.
             // But we need the string Name of department for the 'department' field in Employee model
             // We'll try to fetch it or just use a placeholder if we only have ID.

@@ -29,7 +29,8 @@ export default function DepartmentStudentManager({ departmentId, organizationId:
     const [success, setSuccess] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const organizationId = propOrgId || localStorage.getItem('organization_id');
+    const storedOrgId = localStorage.getItem('organization_id');
+    const organizationId = propOrgId || ((storedOrgId === 'null' || storedOrgId === 'undefined') ? undefined : (storedOrgId || undefined));
 
     const [newStudent, setNewStudent] = useState({
         studentName: '',

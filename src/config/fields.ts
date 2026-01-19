@@ -40,10 +40,22 @@ export const fieldRegistry: { [key: string]: any[] } = {
         { name: 'type', label: 'Type', type: 'select', options: ['Announcement', 'Poll'], default: 'Announcement' },
         { name: 'poll_options_text', label: 'Poll Options (For Polls: Enter one option per line)', type: 'textarea' },
         { name: 'priority', label: 'Priority', type: 'select', options: ['Low', 'Medium', 'High'], required: true },
-        { name: 'targetCenter', label: 'Target Study Center', type: 'select', link: 'studycenter', default: 'All' },
+        { name: 'targetCenter', label: 'Target Study Center', type: 'select', link: 'studycenter', default: 'None' },
         { name: 'showAsPopup', label: 'Show as Popup Alert', type: 'checkbox' },
         { name: 'startDate', label: 'Start Date (Visible From)', type: 'datetime-local', required: true },
         { name: 'endDate', label: 'End Date (Visible Until)', type: 'datetime-local', required: true },
+        { name: 'pinned', label: 'Pinned', type: 'checkbox' }
+    ],
+    opsannouncement: [
+        { name: 'title', label: 'Title', type: 'text', required: true },
+        { name: 'content', label: 'Content', type: 'textarea', required: true },
+        { name: 'targetCenter', label: 'Target Study Center (Select "All" for All Centers)', type: 'select', link: 'studycenter', default: 'None', required: true },
+        { name: 'type', label: 'Type', type: 'select', options: ['Announcement', 'Poll'], default: 'Announcement' },
+        { name: 'poll_options_text', label: 'Poll Options (For Polls)', type: 'textarea' },
+        { name: 'priority', label: 'Priority', type: 'select', options: ['Low', 'Medium', 'High'], required: true },
+        { name: 'showAsPopup', label: 'Show as Popup Alert', type: 'checkbox' },
+        { name: 'startDate', label: 'Start Date', type: 'datetime-local', required: true },
+        { name: 'endDate', label: 'End Date', type: 'datetime-local', required: true },
         { name: 'pinned', label: 'Pinned', type: 'checkbox' }
     ],
     complaint: [
