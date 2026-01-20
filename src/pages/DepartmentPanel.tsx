@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Workspace from '../components/Workspace';
-import { Activity, Shield, Users, FileText, BadgeDollarSign, Receipt, School, BookOpen, UserCheck, CalendarDays, Megaphone, GraduationCap, Building2, ClipboardList, ArrowRight, Edit, Clock } from 'lucide-react';
+import { Activity, Shield, Users, FileText, BadgeDollarSign, Receipt, School, BookOpen, UserCheck, CalendarDays, Megaphone, GraduationCap, Building2, ClipboardList, ArrowRight, Edit, Clock, ArrowLeftRight, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DepartmentStaffManager from '../components/DepartmentStaffManager';
 import DepartmentStudentManager from '../components/DepartmentStudentManager';
@@ -72,7 +72,20 @@ export default function DepartmentPanel() {
         shortcuts.push({ label: 'Mark Attendance', href: '/attendance/new' });
         summaryItems.push({ label: 'Present Today', value: loading ? '...' : counts.attendance || 0, color: 'text-emerald-600', doctype: 'attendance' });
     }
-    if (hasFeature('Recruitment')) {
+    if (hasFeature('Add Employee')) {
+        shortcuts.push({ label: 'Add Employee', href: '/employee/new' });
+    }
+    if (hasFeature('Employee Transfer')) {
+        masterCards.push({
+            label: 'Employee Transfer',
+            count: '',
+            icon: ArrowLeftRight,
+            href: '/employee-transfer',
+            color: 'bg-blue-50 text-blue-600'
+        });
+        shortcuts.push({ label: 'Transfer Employee', href: '/employee-transfer' });
+    }
+    if (hasFeature('Recruitment') || hasFeature('Post Vacancy')) {
         masterCards.push({
             label: 'Recruitment',
             count: '',
@@ -82,6 +95,15 @@ export default function DepartmentPanel() {
         });
         shortcuts.push({ label: 'Post Job', href: '/job-opening/new' });
     }
+    if (hasFeature('Job Application')) {
+        masterCards.push({
+            label: 'Applications',
+            count: '',
+            icon: ClipboardList,
+            href: '/job-opening',
+            color: 'bg-indigo-50 text-indigo-600'
+        });
+    }
     if (hasFeature('Payroll')) {
         shortcuts.push({ label: 'Process Payroll', href: '/payroll' });
     }
@@ -89,11 +111,22 @@ export default function DepartmentPanel() {
     if (hasFeature('Shift Management')) shortcuts.push({ label: 'Manage Shifts', href: '/shift-management' });
     if (hasFeature('Holidays')) {
         masterCards.push({ label: 'Holidays', count: '', icon: CalendarDays, href: '/holiday', color: 'bg-orange-50 text-orange-600' });
-        shortcuts.push({ label: 'Add Holiday', href: '/holiday/new' });
+        const isHR = dept.panelType === 'HR' || /^(Human Resources|HR)$/i.test(dept.name);
+        if (isHR) {
+            shortcuts.push({ label: 'Add Holiday', href: `/holiday/new?departmentId=${id}&department=${encodeURIComponent(dept.name)}` });
+        }
     }
     if (hasFeature('Announcements')) {
         masterCards.push({ label: 'Announcements', count: '', icon: Megaphone, href: '/announcement', color: 'bg-blue-50 text-blue-600' });
         shortcuts.push({ label: 'Post Announcement', href: '/announcement/new' });
+    }
+    if (hasFeature('Employee Complaints')) {
+        masterCards.push({ label: 'Complaints', count: '', icon: Megaphone, href: '/complaint', color: 'bg-red-50 text-red-600' });
+        shortcuts.push({ label: 'Manage Complaints', href: '/complaint' });
+    }
+    if (hasFeature('Performance')) {
+        masterCards.push({ label: 'Performance', count: '', icon: TrendingUp, href: '/performancereview', color: 'bg-indigo-50 text-indigo-600' });
+        shortcuts.push({ label: 'Performance Reviews', href: '/performancereview' });
     }
 
     // Finance Features

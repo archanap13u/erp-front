@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { School, Building2, BookOpen, GraduationCap, FileCheck, TrendingUp, Megaphone, CalendarDays, MapPin, Lock, ExternalLink, ArrowRight, UserPlus, Users, ClipboardList, Edit, Clock, Pin } from 'lucide-react';
+import { School, Building2, BookOpen, GraduationCap, FileCheck, TrendingUp, Megaphone, CalendarDays, MapPin, Lock, ExternalLink, ArrowRight, UserPlus, Users, ClipboardList, Edit, Clock, Pin, Plus } from 'lucide-react';
 import Workspace from '../components/Workspace';
 import { Link } from 'react-router-dom';
 import DepartmentStaffManager from '../components/DepartmentStaffManager';
@@ -24,12 +24,14 @@ export default function OpsDashboard() {
     const [departments, setDepartments] = useState<any[]>([]);
     const [contextData, setContextData] = useState<{ id?: string, name?: string }>({});
     const [opsAnnouncements, setOpsAnnouncements] = useState<any[]>([]);
+    const [holidays, setHolidays] = useState<any[]>([]);
 
     // Get features from localStorage (set during login)
     const userFeaturesRaw = localStorage.getItem('user_features');
     const userRole = localStorage.getItem('user_role');
+    const panelType = localStorage.getItem('department_panel_type');
     const userFeatures: string[] = userFeaturesRaw ? JSON.parse(userFeaturesRaw) : [];
-    const isOps = userRole === 'Operations' || userRole === 'SuperAdmin';
+    const isOps = userRole === 'Operations' || userRole === 'SuperAdmin' || panelType === 'Operations' || panelType === 'Education';
     const hasFeature = (f: string) => isOps || userFeatures.length === 0 || userFeatures.includes(f);
 
     useEffect(() => {
@@ -63,16 +65,17 @@ export default function OpsDashboard() {
                 if (effectiveDeptId) queryParams += `&departmentId=${effectiveDeptId}`;
                 // Removed name filter to avoid mismatch issues
 
-                const [resUni, resStd, resApp, resCen, resEmp, resOpsAnn] = await Promise.all([
+                const [resUni, resStd, resApp, resCen, resEmp, resOpsAnn, resHol] = await Promise.all([
                     fetch(`${baseUrl}/university${queryParams}`),
                     fetch(`${baseUrl}/student${queryParams}`),
                     fetch(`${baseUrl}/studentapplicant${queryParams}`),
                     fetch(`${baseUrl}/studycenter${queryParams}`),
                     fetch(`${baseUrl}/employee${queryParams}`),
-                    fetch(`${baseUrl}/opsannouncement${queryParams}`)
+                    fetch(`${baseUrl}/opsannouncement${queryParams}`),
+                    fetch(`${baseUrl}/holiday?organizationId=${orgId || ''}`)
                 ]);
-                const [jsonUni, jsonStd, jsonApp, jsonCen, jsonEmp, jsonOpsAnn] = await Promise.all([
-                    resUni.json(), resStd.json(), resApp.json(), resCen.json(), resEmp.json(), resOpsAnn.json()
+                const [jsonUni, jsonStd, jsonApp, jsonCen, jsonEmp, jsonOpsAnn, jsonHol] = await Promise.all([
+                    resUni.json(), resStd.json(), resApp.json(), resCen.json(), resEmp.json(), resOpsAnn.json(), resHol.json()
                 ]);
 
                 setCounts({
@@ -85,6 +88,7 @@ export default function OpsDashboard() {
                 setEmployees(jsonEmp.data || []);
                 setCenters(jsonCen.data || []);
                 setOpsAnnouncements(jsonOpsAnn.data || []);
+                setHolidays(jsonHol.data?.slice(0, 3) || []);
 
                 // Store all students
                 const allStds = jsonStd.data || [];
@@ -148,7 +152,7 @@ export default function OpsDashboard() {
                             Recent Ops Announcements
                         </h3>
                         <div className="flex items-center gap-4">
-                            <Link to="/opsannouncement/new" className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[12px] font-bold shadow-sm hover:scale-105 transition-transform no-underline">
+                            <Link to={`/opsannouncement/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}`} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[12px] font-bold shadow-sm hover:scale-105 transition-transform no-underline">
                                 Post New
                             </Link>
                             <Link to="/opsannouncement" className="text-blue-600 font-bold text-[13px] hover:underline flex items-center gap-1">
@@ -184,6 +188,46 @@ export default function OpsDashboard() {
                                         <Link to={`/opsannouncement/${ann._id}`} className="text-blue-600 text-[11px] font-bold hover:underline">
                                             Edit
                                         </Link>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Holidays Section */}
+                <div className="bg-white p-6 rounded-2xl border border-[#d1d8dd] shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-[18px] font-bold text-[#1d2129] flex items-center gap-3">
+                            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center shadow-sm">
+                                <CalendarDays size={20} />
+                            </div>
+                            Upcoming Holidays
+                        </h3>
+                        <div className="flex gap-2">
+                            <Link to="/holiday" className="text-blue-600 hover:text-blue-800 text-[13px] font-bold no-underline bg-blue-50 px-3 py-1.5 rounded-lg transition-all flex items-center">View Calendar</Link>
+                            {isOps && (
+                                <Link to={`/holiday/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}`} className="bg-orange-600 text-white px-4 py-2 rounded-lg text-[13px] font-bold hover:bg-orange-700 transition-all flex items-center gap-2 shadow-lg shadow-orange-100 no-underline">
+                                    <Plus size={14} /> New
+                                </Link>
+                            )}
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {holidays.length === 0 && !loading ? (
+                            <div className="col-span-full py-8 text-center text-gray-400 italic text-[13px]">
+                                No upcoming holidays listed.
+                            </div>
+                        ) : (
+                            holidays.map((hol, idx) => (
+                                <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50/50 rounded-xl border border-transparent hover:border-orange-100 transition-all">
+                                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center border border-gray-100 min-w-[48px]">
+                                        <span className="text-[10px] font-black text-orange-500 uppercase">{new Date(hol.date).toLocaleDateString(undefined, { month: 'short' })}</span>
+                                        <span className="text-[16px] font-black text-gray-900 leading-none">{new Date(hol.date).getDate()}</span>
+                                    </div>
+                                    <div className="overflow-hidden">
+                                        <h4 className="text-[14px] font-bold text-[#1d2129] uppercase tracking-tight truncate">{hol.holidayName}</h4>
+                                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-tighter">{new Date(hol.date).toLocaleDateString(undefined, { weekday: 'long' })}</p>
                                     </div>
                                 </div>
                             ))

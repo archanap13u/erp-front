@@ -28,11 +28,13 @@ export default function EmployeeDashboard() {
                 // For regular employees/students, filter by department. 
                 // For Admins (HR, DeptAdmin, Ops), verify all announcements (Global access).
                 const isRestricted = userRole === 'Employee' || userRole === 'Student';
-                const query = `?organizationId=${orgId || ''}${isRestricted && deptId ? `&departmentId=${deptId}` : ''}`;
+                const baseQuery = `?organizationId=${orgId || ''}`;
+                const annQuery = `${baseQuery}${isRestricted && deptId ? `&departmentId=${deptId}` : ''}`;
+                const holQuery = baseQuery; // Holidays are always org-wide in our inheritance model
 
                 const [resAnn, resHol] = await Promise.all([
-                    fetch(`/api/resource/announcement${query}`),
-                    fetch(`/api/resource/holiday${query}`)
+                    fetch(`/api/resource/announcement${annQuery}`),
+                    fetch(`/api/resource/holiday${holQuery}`)
                 ]);
                 const [jsonAnn, jsonHol] = await Promise.all([resAnn.json(), resHol.json()]);
 

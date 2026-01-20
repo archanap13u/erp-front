@@ -45,8 +45,18 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                         const deptId = localStorage.getItem('department_id');
                         const deptName = localStorage.getItem('department_name');
                         let url = `/api/resource/${field.link}?organizationId=${orgId}`;
-                        if (deptId) url += `&departmentId=${deptId}`;
-                        if (deptName) url += `&department=${encodeURIComponent(deptName)}`;
+                        const urlParams = new URLSearchParams(location.search);
+                        const studyCenterFilter = urlParams.get('studyCenter') || localStorage.getItem('study_center_name');
+
+                        if (field.link !== 'department' && field.link !== 'student') {
+                            if (deptId) url += `&departmentId=${deptId}`;
+                            if (deptName) url += `&department=${encodeURIComponent(deptName)}`;
+                        }
+
+                        // Apply Center filtering for Students specifically
+                        if (field.link === 'student' && studyCenterFilter) {
+                            url += `&studyCenter=${encodeURIComponent(studyCenterFilter.trim())}`;
+                        }
 
                         const res = await fetch(url);
                         const json = await res.json();
@@ -90,7 +100,7 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                 const updated = { ...prev, organizationId: orgId };
                 const deptName = localStorage.getItem('department_name');
 
-                const isDepartmental = ['holiday', 'complaint', 'performancereview', 'attendance', 'studycenter', 'announcement', 'opsannouncement', 'program', 'university', 'jobopening'].includes(doctype || '');
+                const isDepartmental = ['holiday', 'complaint', 'performancereview', 'attendance', 'studycenter', 'announcement', 'opsannouncement', 'program', 'university', 'jobopening', 'internalmark'].includes(doctype || '');
 
                 if (isDepartmental) {
                     if (storedDeptId) {
@@ -139,6 +149,13 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
         if (params.get('designation')) updates.designation = params.get('designation');
         if (params.get('department')) updates.department = params.get('department');
         if (params.get('departmentId')) updates.departmentId = params.get('departmentId');
+        if (params.get('studyCenter')) updates.studyCenter = params.get('studyCenter');
+        if (params.get('student')) updates.student = params.get('student');
+        if (params.get('studentId')) updates.studentId = params.get('studentId');
+        if (params.get('program')) updates.program = params.get('program');
+        if (params.get('semester')) updates.semester = params.get('semester');
+        if (params.get('batch')) updates.batch = params.get('batch');
+        if (params.get('subject')) updates.subject = params.get('subject');
 
         // Track the source panel for employees specifically if passed in URL
         if (doctype === 'employee') {
@@ -172,6 +189,11 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
         }
 
         setSaving(true);
+        if (doctype === 'internalmark') {
+            console.log('--- SUBMITTING INTERNAL MARK ---');
+            console.log('Payload:', JSON.stringify(payload, null, 2));
+            console.log('--------------------------------');
+        }
         try {
             const res = await fetch(`/api/resource/${doctype}`, {
                 method: 'POST',
@@ -192,7 +214,11 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                         console.error('Failed to update application status', e);
                     }
                 }
-                navigate(`/${doctype}`);
+                if (doctype === 'internalmark' && localStorage.getItem('user_role') === 'StudyCenter') {
+                    navigate('/center-dashboard#marks-record');
+                } else {
+                    navigate(`/${doctype}`);
+                }
             } else {
                 const err = await res.json();
                 alert(`Error: ${err.error || 'Failed to save record'}`);
@@ -338,6 +364,16 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                                                 );
                                                 if (selectedDept) {
                                                     newData.department = selectedDept.label;
+                                                }
+                                            }
+
+                                            // Sync Student name when studentId is selected (for InternalMarks)
+                                            if (field.name === 'studentId' && field.link === 'student') {
+                                                const selectedStudent = (dynamicOptions[field.name] || []).find(
+                                                    opt => opt.value === e.target.value
+                                                );
+                                                if (selectedStudent) {
+                                                    newData.student = selectedStudent.label;
                                                 }
                                             }
 

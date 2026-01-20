@@ -18,7 +18,7 @@ export default function StudentDashboard() {
 
                 const [resAnn, resHol] = await Promise.all([
                     fetch(`/api/resource/announcement${query}`),
-                    fetch(`/api/resource/holiday${query}`)
+                    fetch(`/api/resource/holiday?organizationId=${orgId || ''}`)
                 ]);
                 const [jsonAnn, jsonHol] = await Promise.all([resAnn.json(), resHol.json()]);
                 setAnnouncements(jsonAnn.data || []);

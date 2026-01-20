@@ -77,7 +77,7 @@ export default function InternalMarksPage() {
                 ]}
                 masterCards={[]}
                 shortcuts={[
-                    { label: 'Add Internal Mark', href: '/internalmark/new' },
+                    { label: 'Add Internal Mark', href: `/internalmark/new?studyCenter=${encodeURIComponent(localStorage.getItem('study_center_name') || '')}` },
                     { label: 'View APPLICATIONS', href: '/student' },
                 ]}
             />

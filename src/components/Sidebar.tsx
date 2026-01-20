@@ -33,15 +33,18 @@ export default function Sidebar() {
     const [deptId, setDeptId] = useState<string | null>(null);
     const [departments, setDepartments] = useState<any[]>([]);
     const [deptFeatures, setDeptFeatures] = useState<string[]>([]);
+    const [panelType, setPanelType] = useState<string | null>(localStorage.getItem('department_panel_type'));
 
     useEffect(() => {
         const currentRole = localStorage.getItem('user_role');
         const storedOrgId = localStorage.getItem('organization_id');
         const currentOrgId = (storedOrgId === 'null' || storedOrgId === 'undefined') ? null : storedOrgId;
         const currentDeptId = localStorage.getItem('department_id');
+        const currentPanelType = localStorage.getItem('department_panel_type');
         const storedFeatures = localStorage.getItem('user_features');
         setRole(currentRole);
         setDeptId(currentDeptId);
+        setPanelType(currentPanelType);
 
         // Determine if we should fetch features for a specific department from the URL
         const pathParts = location.pathname.split('/');
@@ -89,7 +92,16 @@ export default function Sidebar() {
 
     const allMenuItems = [
         // Core Dashboard Items (Role based, generally always visible for the role)
-        { icon: LayoutDashboard, label: 'Dashboard', href: '/employee-dashboard', roles: ['Employee', 'DepartmentAdmin', 'HR', 'Operations', 'Finance', 'Inventory', 'CRM', 'Projects', 'Support', 'Assets'] },
+        {
+            icon: LayoutDashboard,
+            label: 'Dashboard',
+            href: (role === 'Operations' || panelType === 'Operations' || panelType === 'Education') ? '/ops-dashboard' :
+                (role === 'HR' || panelType === 'HR') ? '/hr' :
+                    (role === 'Finance' || panelType === 'Finance') ? '/finance' :
+                        '/employee-dashboard',
+            roles: ['Employee', 'DepartmentAdmin', 'HR', 'Operations', 'Finance', 'Inventory', 'CRM', 'Projects', 'Support', 'Assets']
+        },
+        { icon: UserCheck, label: 'Staff Portal', href: '/employee-dashboard', roles: ['HR', 'Operations', 'Finance', 'DepartmentAdmin'] },
         { icon: LayoutDashboard, label: 'Student Portal', href: '/student-dashboard', roles: ['Student'] },
         { icon: LayoutDashboard, label: 'Ops Workspace', href: '/ops-dashboard', roles: ['Operations'] },
         { icon: LayoutDashboard, label: 'Org Dashboard', href: '/organization-dashboard', roles: ['OrganizationAdmin'] },
@@ -126,7 +138,8 @@ export default function Sidebar() {
         { icon: Building2, label: 'Study Centers', href: '/studycenter', roles: ['Operations'], feature: 'Study Center' },
         { icon: GraduationCap, label: 'Programs', href: '/program', roles: ['Operations'], feature: 'Programs' },
         { icon: ClipboardList, label: 'APPLICATIONS', href: '/studentapplicant', roles: ['Operations'], feature: 'APPLICATIONS' },
-        { icon: UserCheck, label: 'Internal Marks', href: '/internalmark', roles: ['Operations', 'StudyCenter'], feature: 'Internal Marks' },
+        { icon: Megaphone, label: 'Ops Announcements', href: '/opsannouncement', roles: ['Operations'], feature: 'Ops Announcements' },
+        { icon: UserCheck, label: 'Internal Marks', href: role === 'StudyCenter' ? '/center-dashboard#marks-record' : '/internalmark', roles: ['Operations', 'StudyCenter'], feature: 'Internal Marks' },
 
         // CRM & Sales
         { icon: Megaphone, label: 'Leads', href: '/lead', roles: ['CRM'], feature: 'Leads' },

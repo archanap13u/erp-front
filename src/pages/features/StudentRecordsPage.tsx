@@ -39,13 +39,13 @@ export default function StudentRecordsPage() {
                 // 2. Role-specific filtering
                 if (isCenter && centerName) {
                     // Study Center User: MUST only see their own students
-                    params.append('studyCenter', centerName);
+                    params.append('studyCenter', centerName.trim());
                 } else if (isOps) {
                     // Operations User: Should see ALL students for the organization
                     // We explicitly DO NOT append studyCenter here
                 }
 
-                const finalUrl = `${url}?${params.toString()}`;
+                const finalUrl = `/api/resource/student?${params.toString()}`;
                 console.log('[StudentRecords] Fetching:', finalUrl);
 
                 const res = await fetch(finalUrl);

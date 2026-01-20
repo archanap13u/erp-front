@@ -150,7 +150,8 @@ export const fieldRegistry: { [key: string]: any[] } = {
         { name: 'description', label: 'Job Description', type: 'textarea' }
     ],
     internalmark: [
-        { name: 'student', label: 'Student', type: 'select', link: 'student', required: true },
+        { name: 'studentId', label: 'Student', type: 'select', link: 'student', required: true },
+        { name: 'student', label: 'Student Name', type: 'hidden' },
         { name: 'program', label: 'Program', type: 'text' },
         { name: 'subject', label: 'Subject', type: 'text', required: true },
         { name: 'marksObtained', label: 'Marks Obtained', type: 'number', required: true },

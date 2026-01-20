@@ -66,6 +66,7 @@ export default function LoginPage() {
                 if (data.user.employeeId) localStorage.setItem('employee_id', data.user.employeeId);
                 if (data.user.organizationId) localStorage.setItem('organization_id', data.user.organizationId);
                 if (data.user.departmentId) localStorage.setItem('department_id', data.user.departmentId);
+                if (data.user.panelType) localStorage.setItem('department_panel_type', data.user.panelType);
                 if (data.user.role === 'StudyCenter') {
                     localStorage.setItem('study_center_id', data.user.id || data.user._id);
                 }

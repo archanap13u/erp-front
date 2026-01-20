@@ -36,8 +36,10 @@ export default function GenericEdit({ doctype: propDoctype }: GenericEditProps) 
                         const deptId = localStorage.getItem('department_id');
                         const deptName = localStorage.getItem('department_name');
                         let url = `/api/resource/${field.link}?organizationId=${orgId}`;
-                        if (deptId) url += `&departmentId=${deptId}`;
-                        if (deptName) url += `&department=${encodeURIComponent(deptName)}`;
+                        if (field.link !== 'department') {
+                            if (deptId) url += `&departmentId=${deptId}`;
+                            if (deptName) url += `&department=${encodeURIComponent(deptName)}`;
+                        }
 
                         const res = await fetch(url);
                         const json = await res.json();

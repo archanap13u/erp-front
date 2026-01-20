@@ -177,7 +177,7 @@ export default function HRDashboard() {
                 shortcuts={[
                     { label: 'Mark Attendance', href: '/attendance/new' },
                     { label: 'Post Announcement', href: `/announcement/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}` },
-                    { label: 'Add Holiday', href: '/holiday/new' },
+                    { label: 'Add Holiday', href: `/holiday/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}` },
                     { label: "My Panel's Staff", href: `/employee?departmentId=${contextData.id || ''}` },
                     { label: "All Employees", href: '/employee' },
                 ]}
@@ -280,7 +280,12 @@ export default function HRDashboard() {
                             </div>
                             Upcoming Holidays
                         </h3>
-                        <Link to="/holiday" className="text-blue-600 hover:text-blue-800 text-[13px] font-bold no-underline bg-blue-50 px-3 py-1.5 rounded-lg transition-all">View Calendar</Link>
+                        <div className="flex gap-2">
+                            <Link to="/holiday" className="text-blue-600 hover:text-blue-800 text-[13px] font-bold no-underline bg-blue-50 px-3 py-1.5 rounded-lg transition-all">View Calendar</Link>
+                            <Link to={`/holiday/new?department=${encodeURIComponent(contextData.name || '')}&departmentId=${contextData.id || ''}`} className="bg-orange-600 text-white px-4 py-2 rounded-lg text-[13px] font-bold hover:bg-orange-700 transition-all flex items-center gap-2 shadow-lg shadow-orange-100 no-underline">
+                                <Plus size={14} /> New
+                            </Link>
+                        </div>
                     </div>
                     <div className="space-y-4">
                         {holidays.length === 0 && !loading ? (

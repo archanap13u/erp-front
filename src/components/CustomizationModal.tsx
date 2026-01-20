@@ -12,6 +12,7 @@ interface CustomizationModalProps {
 const ALL_FEATURES = [
     'Add Employee', 'Post Vacancy', 'Job Application', 'Employee Transfer',
     'Attendance', 'Recruitment', 'Payroll', 'Employee Lifecycle', 'Shift Management', 'Holidays', 'Announcements',
+    'Employee Complaints', 'Performance',
     'Invoices', 'Payments', 'Expenses', 'General Ledger', 'Taxation', 'Quotations', 'Sales Orders',
     'University', 'Study Center', 'STUDENTS', 'APPLICATIONS', 'Programs', 'Internal Marks',
     'Stock Entry', 'Delivery Note', 'Item Management', 'Purchase Receipt', 'Warehouses', 'Suppliers',
@@ -24,7 +25,7 @@ const ALL_FEATURES = [
 const PRESETS = [
     {
         name: 'Full HR Portal',
-        features: ['Add Employee', 'Post Vacancy', 'Job Application', 'Employee Transfer', 'Attendance', 'Recruitment', 'Payroll', 'Employee Lifecycle', 'Shift Management', 'Holidays', 'Announcements'],
+        features: ['Add Employee', 'Post Vacancy', 'Job Application', 'Employee Transfer', 'Attendance', 'Recruitment', 'Payroll', 'Employee Lifecycle', 'Shift Management', 'Holidays', 'Announcements', 'Employee Complaints', 'Performance'],
         description: 'Complete suite for Human Resources management'
     },
     {

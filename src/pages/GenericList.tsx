@@ -51,11 +51,11 @@ export default function GenericList() {
             const isDepartmental = ['announcement', 'holiday', 'complaint', 'performancereview'].includes(doctype || '');
 
             if (isDepartmental) {
-                if (path.startsWith('/hr') || path.startsWith('/employee') || path.startsWith('/jobopening') || path.startsWith('/attendance') || path.startsWith('/holiday')) {
+                if (/^\/(hr|employee|jobopening|attendance|holiday)/i.test(path)) {
                     deptName = 'Human Resources';
-                } else if (path.startsWith('/ops-dashboard') || path.startsWith('/student') || path.startsWith('/university') || path.startsWith('/program') || path.startsWith('/studycenter')) {
+                } else if (/^\/(ops-dashboard|student|university|program|studycenter)/i.test(path)) {
                     deptName = 'Operations';
-                } else if (path.startsWith('/finance') || path.startsWith('/salesinvoice') || path.startsWith('/payment') || path.startsWith('/expense')) {
+                } else if (/^\/(finance|salesinvoice|payment|expense)/i.test(path)) {
                     deptName = 'Finance';
                 }
             }
@@ -123,14 +123,19 @@ export default function GenericList() {
                         Refresh
                     </button>
                     {doctype !== 'student' && doctype !== 'complaint' && (
-                        <button
-                            onClick={() => navigate(`/${doctype}/new`)}
-                            className="bg-blue-600 text-white px-3 py-1.5 rounded text-[13px] font-semibold hover:bg-blue-700 flex items-center gap-2 shadow-sm"
-                        >
-                            <Plus size={14} />
-                            Add {displayTitle}
-                        </button>
-                    )}
+                        doctype !== 'holiday' ||
+                        ['SuperAdmin', 'OrganizationAdmin', 'HR'].includes(localStorage.getItem('user_role') || '') ||
+                        localStorage.getItem('department_panel_type') === 'HR' ||
+                        /^(Human Resources|HR)$/i.test(localStorage.getItem('department_name') || '')
+                    ) && (
+                            <button
+                                onClick={() => navigate(`/${doctype}/new`)}
+                                className="bg-blue-600 text-white px-3 py-1.5 rounded text-[13px] font-semibold hover:bg-blue-700 flex items-center gap-2 shadow-sm"
+                            >
+                                <Plus size={14} />
+                                Add {displayTitle}
+                            </button>
+                        )}
                 </div>
             </div>
 
