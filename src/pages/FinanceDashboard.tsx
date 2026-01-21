@@ -22,6 +22,7 @@ export default function FinanceDashboard() {
     const [counts, setCounts] = useState<{ [key: string]: number }>({});
     const [invoices, setInvoices] = useState<any[]>([]);
     const [pendingStudents, setPendingStudents] = useState<any[]>([]);
+    const [pendingEmployees, setPendingEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     const orgId = localStorage.getItem('organization_id');
@@ -64,6 +65,11 @@ export default function FinanceDashboard() {
                 const jsonStd = await resStd.json();
                 setPendingStudents(jsonStd.data || []);
 
+                // Fetch Pending Employees
+                const resEmp = await fetch(`${baseUrl}/employee${queryParams}&verificationStatus=Pending`);
+                const jsonEmp = await resEmp.json();
+                setPendingEmployees(jsonEmp.data || []);
+
             } catch (e) {
                 console.error(e);
             } finally {
@@ -100,7 +106,7 @@ export default function FinanceDashboard() {
                     { label: 'Expense Claims', value: '', color: 'text-red-500', doctype: 'expenseclaim' },
                 ]}
                 masterCards={[
-                    { label: 'STUDENT Fees', icon: GraduationCap, count: '', href: '/student' },
+                    { label: 'STUDENT Fees', icon: GraduationCap, count: '', href: '/finance-students' },
                     { label: 'Payments', icon: CreditCard, count: '', href: '/paymententry' },
                     { label: 'Expenses', icon: Receipt, count: '', href: '/expenseclaim' },
                     { label: 'General Ledger', icon: BookOpen, count: '', href: '#' },
@@ -191,7 +197,7 @@ export default function FinanceDashboard() {
                                                     const res = await fetch(`/api/resource/student/${student._id}?organizationId=${orgId}`, {
                                                         method: 'PUT',
                                                         headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ verificationStatus: 'Approved by Accounts' })
+                                                        body: JSON.stringify({ verificationStatus: 'Active' })
                                                     });
                                                     if (res.ok) window.location.reload();
                                                 } catch (e) { console.error(e); }
@@ -199,6 +205,66 @@ export default function FinanceDashboard() {
                                             className="bg-emerald-600 text-white px-3 py-1 rounded text-[11px] font-bold hover:bg-emerald-700 shadow-sm"
                                         >
                                             Approve
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Pending Employee Verifications (New Section) */}
+                <div className="bg-white rounded-xl border border-[#d1d8dd] shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-[#d1d8dd] bg-amber-50/50 flex items-center justify-between">
+                        <h3 className="text-[16px] font-bold text-[#1d2129] flex items-center gap-2">
+                            <Users size={18} className="text-amber-600" />
+                            Pending Employee Verifications
+                        </h3>
+                        <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            {pendingEmployees.length} PENDING
+                        </span>
+                    </div>
+                    <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+                        {pendingEmployees.length === 0 ? (
+                            <div className="p-8 text-center text-gray-400 italic text-[13px]">No employees awaiting verification.</div>
+                        ) : (
+                            pendingEmployees.map((emp, idx) => (
+                                <div key={idx} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-amber-50 text-amber-600 rounded">
+                                            <Users size={16} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[13px] font-bold text-[#1d2129]">{emp.employeeName} ({emp.employeeId})</p>
+                                            <div className="flex items-center gap-2 text-[11px] text-gray-500 font-medium">
+                                                <span>{emp.department || 'No Dept'}</span>
+                                                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                <span>{emp.designation || 'No Role'}</span>
+                                                {emp.studyCenter && (
+                                                    <>
+                                                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                        <span>{emp.studyCenter}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={async () => {
+                                                if (!confirm(`Verify employee ${emp.employeeName}?`)) return;
+                                                try {
+                                                    const res = await fetch(`/api/resource/employee/${emp._id}?organizationId=${orgId}`, {
+                                                        method: 'PUT',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ verificationStatus: 'Verified' })
+                                                    });
+                                                    if (res.ok) window.location.reload();
+                                                } catch (e) { console.error(e); }
+                                            }}
+                                            className="bg-amber-600 text-white px-3 py-1 rounded text-[11px] font-bold hover:bg-amber-700 shadow-sm"
+                                        >
+                                            Verify
                                         </button>
                                     </div>
                                 </div>

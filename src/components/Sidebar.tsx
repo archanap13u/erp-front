@@ -23,7 +23,9 @@ import {
     Activity,
     ArrowLeftRight,
     Bell,
-    ClipboardList
+    ClipboardList,
+    Clock,
+    Award
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -103,7 +105,11 @@ export default function Sidebar() {
         },
         { icon: UserCheck, label: 'Staff Portal', href: '/employee-dashboard', roles: ['HR', 'Operations', 'Finance', 'DepartmentAdmin'] },
         { icon: LayoutDashboard, label: 'Student Portal', href: '/student-dashboard', roles: ['Student'] },
-        { icon: LayoutDashboard, label: 'Ops Workspace', href: '/ops-dashboard', roles: ['Operations'] },
+        // LMS Student Links
+        { icon: Clock, label: 'Exams', href: '/student/exams', roles: ['Student'] },
+        { icon: Award, label: 'Results', href: '/student/results', roles: ['Student'] },
+        { icon: BookOpen, label: 'My Courses', href: '/student/courses', roles: ['Student'] },
+
         { icon: LayoutDashboard, label: 'Org Dashboard', href: '/organization-dashboard', roles: ['OrganizationAdmin'] },
         { icon: LayoutDashboard, label: 'Center Dashboard', href: '/center-dashboard', roles: ['StudyCenter'] },
         { icon: Settings, label: 'Customize Departments', href: '/organization/departments', roles: ['OrganizationAdmin'] },
@@ -118,12 +124,12 @@ export default function Sidebar() {
         { icon: UserCheck, label: 'Recruitment', href: '/jobopening', roles: ['HR'], feature: 'Recruitment' },
         { icon: Users, label: 'Employee Lifecycle', href: '/employee-lifecycle', roles: ['HR'], feature: 'Employee Lifecycle' },
 
-        { icon: GraduationCap, label: 'STUDENTS', href: '/student', roles: ['HR', 'Operations', 'StudyCenter'], feature: 'STUDENTS' },
+        { icon: GraduationCap, label: 'STUDENTS', href: (role === 'Finance' || panelType === 'Finance' || role?.includes('Admin')) ? '/finance-students' : '/student', roles: ['HR', 'Operations', 'StudyCenter', 'Finance', 'OrganizationAdmin', 'SuperAdmin'], feature: 'STUDENTS' },
         { icon: Megaphone, label: 'Complaints', href: '/complaint', roles: ['HR'], feature: 'Employee Complaints' },
         { icon: School, label: 'Holidays', href: '/holiday', roles: ['HR', 'Operations'], feature: 'Holidays' },
         { icon: Megaphone, label: 'Announcements', href: '/announcement', roles: ['HR'], feature: 'Announcements' },
         { icon: TrendingUp, label: 'Performance', href: '/performancereview', roles: ['HR'], feature: 'Performance' },
-        { icon: CalendarDays, label: 'Attendance', href: '/attendance', roles: ['HR', 'Employee', 'Student'], feature: 'Attendance' },
+        { icon: CalendarDays, label: 'Attendance', href: '/attendance', roles: ['HR', 'Employee'], feature: 'Attendance' },
 
         // Finance
         { icon: BadgeDollarSign, label: 'Finance Workspace', href: '/finance', roles: ['Finance'], feature: 'Finance Dashboard' },
@@ -137,9 +143,9 @@ export default function Sidebar() {
         { icon: School, label: 'Universities', href: '/university', roles: ['Operations'], feature: 'University' },
         { icon: Building2, label: 'Study Centers', href: '/studycenter', roles: ['Operations'], feature: 'Study Center' },
         { icon: GraduationCap, label: 'Programs', href: '/program', roles: ['Operations'], feature: 'Programs' },
-        { icon: ClipboardList, label: 'APPLICATIONS', href: '/studentapplicant', roles: ['Operations'], feature: 'APPLICATIONS' },
+        { icon: ClipboardList, label: 'APPLICATIONS', href: '/student', roles: ['Operations'], feature: 'APPLICATIONS' },
         { icon: Megaphone, label: 'Ops Announcements', href: '/opsannouncement', roles: ['Operations'], feature: 'Ops Announcements' },
-        { icon: UserCheck, label: 'Internal Marks', href: role === 'StudyCenter' ? '/center-dashboard#marks-record' : '/internalmark', roles: ['Operations', 'StudyCenter'], feature: 'Internal Marks' },
+        { icon: UserCheck, label: 'Internal Marks', href: '/internalmark', roles: ['Operations', 'StudyCenter'], feature: 'Internal Marks' },
 
         // CRM & Sales
         { icon: Megaphone, label: 'Leads', href: '/lead', roles: ['CRM'], feature: 'Leads' },
@@ -168,7 +174,7 @@ export default function Sidebar() {
         { icon: BadgeDollarSign, label: 'Assets', href: '/asset', roles: ['Assets'], feature: 'Asset Tracking' },
 
         // Shared
-        { icon: Bell, label: 'Notifications', href: '/notifications', roles: [] }, // Available for all roles
+        { icon: Bell, label: 'Notifications', href: '/notifications', roles: ['Employee', 'DepartmentAdmin', 'HR', 'Operations', 'Finance', 'Inventory', 'CRM', 'Projects', 'Support', 'Assets', 'StudyCenter', 'OrganizationAdmin'] },
     ];
 
     const filteredItems = allMenuItems.filter(item => {

@@ -10,6 +10,12 @@ export default function GenericList() {
     const [loading, setLoading] = useState(true);
     const [hiredCounts, setHiredCounts] = useState<Record<string, number>>({});
 
+    // Determine context
+    const userRole = localStorage.getItem('user_role');
+    const deptName = localStorage.getItem('department_name');
+
+    const [filterStatus, setFilterStatus] = useState<string>('All');
+
     const displayTitle = (doctype as string || '').replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -48,7 +54,8 @@ export default function GenericList() {
         if (!deptName && (userRole === 'OrganizationAdmin' || userRole === 'SuperAdmin')) {
             const path = location.pathname;
             // Only apply automatic department silos for actual departmental news/meta
-            const isDepartmental = ['announcement', 'holiday', 'complaint', 'performancereview'].includes(doctype || '');
+            // Note: complaint is NOT departmental - it's org-wide for HR to manage all
+            const isDepartmental = ['announcement', 'holiday', 'performancereview'].includes(doctype || '');
 
             if (isDepartmental) {
                 if (/^\/(hr|employee|jobopening|attendance|holiday)/i.test(path)) {
@@ -63,8 +70,9 @@ export default function GenericList() {
 
         let url = `/api/resource/${doctype}?organizationId=${orgId || ''}`;
 
-        // Don't silo Employees or Students by Department for HR/Admin roles
-        const isGlobalDoctype = ['employee', 'student', 'jobopening'].includes(doctype || '');
+        // Don't silo Employees, Students, or Complaints by Department for HR/Admin roles
+        // Complaints are org-wide so HR can see all employee complaints
+        const isGlobalDoctype = ['employee', 'student', 'jobopening', 'complaint'].includes(doctype || '');
         const isAdminOrHR = userRole === 'SuperAdmin' || userRole === 'OrganizationAdmin' || userRole === 'HR' || userRole === 'Operations';
 
         if (!isGlobalDoctype || !isAdminOrHR) {
@@ -139,6 +147,26 @@ export default function GenericList() {
                 </div>
             </div>
 
+            {/* Status Filter Tabs for Student List */}
+            {doctype === 'student' && (
+                <div className="flex items-center gap-2 mb-6">
+                    <div className="bg-white p-1 rounded-lg border border-[#d1d8dd] flex items-center">
+                        {['All', 'Verified by Ops', 'Active', 'Processing', 'Pending'].map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => setFilterStatus(status)}
+                                className={`px-4 py-1.5 text-[12px] font-bold rounded-md transition-all ${filterStatus === status
+                                    ? 'bg-blue-50 text-blue-700 shadow-sm'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                    }`}
+                            >
+                                {status === 'Verified by Ops' ? 'Ready for Approval' : status}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white overflow-hidden shadow-sm border border-[#d1d8dd] rounded-lg">
                 <div className="p-3 border-b border-[#d1d8dd] bg-[#f9fafb] flex items-center gap-4">
                     <div className="relative flex-1 max-w-sm">
@@ -181,87 +209,92 @@ export default function GenericList() {
                             ) : data.length === 0 ? (
                                 <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 italic">No records found.</td></tr>
                             ) : (
-                                data.map((item, idx) => (
-                                    <tr
-                                        key={idx}
-                                        onClick={() => handleRowClick(item._id)}
-                                        className="hover:bg-[#f9fafb] cursor-pointer group transition-colors"
-                                    >
-                                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="rounded" /></td>
-                                        <td className="px-4 py-3 font-medium text-blue-600 hover:underline">
-                                            {item.name || item.job_title || item.title || item.subject || item.holidayName || item.universityName || item.centerName || item.programName || item.employeeName || item.studentName || item.student || item._id}
-                                        </td>
-                                        {doctype === 'employee' && (
-                                            <td className="px-4 py-3 text-[#1d2129]">
-                                                {item.department || '-'}
+                                data
+                                    .filter(item => {
+                                        if (doctype !== 'student' || filterStatus === 'All') return true;
+                                        return item.verificationStatus === filterStatus;
+                                    })
+                                    .map((item, idx) => (
+                                        <tr
+                                            key={idx}
+                                            onClick={() => handleRowClick(item._id)}
+                                            className="hover:bg-[#f9fafb] cursor-pointer group transition-colors"
+                                        >
+                                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="rounded" /></td>
+                                            <td className="px-4 py-3 font-medium text-blue-600 hover:underline">
+                                                {item.name || item.job_title || item.title || item.subject || item.holidayName || item.universityName || item.centerName || item.programName || item.employeeName || item.studentName || item.student || item._id}
                                             </td>
-                                        )}
-                                        {doctype === 'employee' && (
-                                            <td className="px-4 py-3 text-[#1d2129]">
-                                                {item.designation || '-'}
-                                            </td>
-                                        )}
-                                        {doctype === 'employee' && (
-                                            <td className="px-4 py-3 text-[#1d2129]">
-                                                {item.reportsToRole || (item.reportsTo?.employeeName ? item.reportsTo.employeeName : '-')}
-                                            </td>
-                                        )}
-                                        {doctype === 'jobopening' && (
-                                            <td className="px-4 py-3 text-[#1d2129]">
-                                                {item.department || '-'}
-                                            </td>
-                                        )}
-                                        {doctype === 'jobopening' && (
-                                            <td className="px-4 py-3 text-[#1d2129] font-medium">
-                                                {item.no_of_positions || 1}
-                                            </td>
-                                        )}
-                                        {doctype === 'jobopening' && (
+                                            {doctype === 'employee' && (
+                                                <td className="px-4 py-3 text-[#1d2129]">
+                                                    {item.department || '-'}
+                                                </td>
+                                            )}
+                                            {doctype === 'employee' && (
+                                                <td className="px-4 py-3 text-[#1d2129]">
+                                                    {item.designation || '-'}
+                                                </td>
+                                            )}
+                                            {doctype === 'employee' && (
+                                                <td className="px-4 py-3 text-[#1d2129]">
+                                                    {item.reportsToRole || (item.reportsTo?.employeeName ? item.reportsTo.employeeName : '-')}
+                                                </td>
+                                            )}
+                                            {doctype === 'jobopening' && (
+                                                <td className="px-4 py-3 text-[#1d2129]">
+                                                    {item.department || '-'}
+                                                </td>
+                                            )}
+                                            {doctype === 'jobopening' && (
+                                                <td className="px-4 py-3 text-[#1d2129] font-medium">
+                                                    {item.no_of_positions || 1}
+                                                </td>
+                                            )}
+                                            {doctype === 'jobopening' && (
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${(hiredCounts[item._id] || 0) >= (item.no_of_positions || 1)
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-blue-100 text-blue-700'
+                                                        }`}>
+                                                        {hiredCounts[item._id] || 0}
+                                                    </span>
+                                                </td>
+                                            )}
+                                            {doctype === 'jobopening' && (
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${((item.no_of_positions || 1) - (hiredCounts[item._id] || 0)) <= 0
+                                                        ? 'bg-gray-100 text-gray-500'
+                                                        : 'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                        {Math.max(0, (item.no_of_positions || 1) - (hiredCounts[item._id] || 0))}
+                                                    </span>
+                                                </td>
+                                            )}
+                                            {(doctype === 'announcement' || doctype === 'opsannouncement') && (
+                                                <td className="px-4 py-3 text-[#1d2129] font-medium">
+                                                    {item.targetCenter || '-'}
+                                                </td>
+                                            )}
+                                            {doctype === 'announcement' && (
+                                                <td className="px-4 py-3 text-[#1d2129]">
+                                                    {item.department || '-'}
+                                                </td>
+                                            )}
                                             <td className="px-4 py-3">
-                                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${(hiredCounts[item._id] || 0) >= (item.no_of_positions || 1)
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-blue-100 text-blue-700'
+                                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${item.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                                    item.status === 'Left' ? 'bg-red-100 text-red-700' :
+                                                        'bg-gray-100 text-[#626161]'
                                                     }`}>
-                                                    {hiredCounts[item._id] || 0}
+                                                    {item.status || 'Active'}
                                                 </span>
                                             </td>
-                                        )}
-                                        {doctype === 'jobopening' && (
-                                            <td className="px-4 py-3">
-                                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${((item.no_of_positions || 1) - (hiredCounts[item._id] || 0)) <= 0
-                                                    ? 'bg-gray-100 text-gray-500'
-                                                    : 'bg-yellow-100 text-yellow-700'
-                                                    }`}>
-                                                    {Math.max(0, (item.no_of_positions || 1) - (hiredCounts[item._id] || 0))}
-                                                </span>
+                                            <td className="px-4 py-3 text-[#8d99a6]">
+                                                {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : 'Today'}
                                             </td>
-                                        )}
-                                        {(doctype === 'announcement' || doctype === 'opsannouncement') && (
-                                            <td className="px-4 py-3 text-[#1d2129] font-medium">
-                                                {item.targetCenter || '-'}
+                                            <td className="px-4 py-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <MoreHorizontal size={16} className="text-gray-400 hover:text-blue-600" />
                                             </td>
-                                        )}
-                                        {doctype === 'announcement' && (
-                                            <td className="px-4 py-3 text-[#1d2129]">
-                                                {item.department || '-'}
-                                            </td>
-                                        )}
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${item.status === 'Active' ? 'bg-green-100 text-green-700' :
-                                                item.status === 'Left' ? 'bg-red-100 text-red-700' :
-                                                    'bg-gray-100 text-[#626161]'
-                                                }`}>
-                                                {item.status || 'Active'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-[#8d99a6]">
-                                            {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : 'Today'}
-                                        </td>
-                                        <td className="px-4 py-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <MoreHorizontal size={16} className="text-gray-400 hover:text-blue-600" />
-                                        </td>
-                                    </tr>
-                                ))
+                                        </tr>
+                                    ))
                             )}
                         </tbody>
                     </table>

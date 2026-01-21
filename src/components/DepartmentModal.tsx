@@ -38,7 +38,7 @@ const MODULES = [
     {
         id: 'Finance',
         name: 'Finance & Accounts',
-        features: ['Invoices', 'Payments', 'Expenses', 'General Ledger', 'Taxation', 'Announcements', 'Employee List'],
+        features: ['Invoices', 'Payments', 'Expenses', 'General Ledger', 'Taxation', 'Announcements', 'Employee List', 'STUDENTS'],
         color: 'text-emerald-600',
         bg: 'bg-emerald-50',
         border: 'border-emerald-100'

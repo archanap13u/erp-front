@@ -214,7 +214,13 @@ export default function GenericNew({ doctype: propDoctype }: GenericNewProps) {
                         console.error('Failed to update application status', e);
                     }
                 }
-                if (doctype === 'internalmark' && localStorage.getItem('user_role') === 'StudyCenter') {
+
+                const redirectParams = new URLSearchParams(location.search);
+                const redirectUrl = redirectParams.get('redirect');
+
+                if (redirectUrl) {
+                    navigate(redirectUrl);
+                } else if (doctype === 'internalmark' && localStorage.getItem('user_role') === 'StudyCenter') {
                     navigate('/center-dashboard#marks-record');
                 } else {
                     navigate(`/${doctype}`);

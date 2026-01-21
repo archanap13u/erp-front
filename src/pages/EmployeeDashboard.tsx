@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, CalendarDays, Megaphone, Clock, GraduationCap, Calendar } from 'lucide-react';
+import { UserCheck, CalendarDays, Megaphone, Clock, GraduationCap, Calendar, Trash2 } from 'lucide-react';
 import PollWidget from '../components/PollWidget';
 
 export default function EmployeeDashboard() {
@@ -7,10 +7,29 @@ export default function EmployeeDashboard() {
     const [empId, setEmpId] = useState('');
     const [announcements, setAnnouncements] = useState<any[]>([]);
     const [holidays, setHolidays] = useState<any[]>([]);
+    const [complaints, setComplaints] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Use employee ID if available, otherwise fallback to username for voting checks
     const voterId = empId || name;
+
+    const handleDeleteComplaint = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this complaint?')) return;
+        try {
+            const orgId = localStorage.getItem('organization_id');
+            const res = await fetch(`/api/resource/complaint/${id}?organizationId=${orgId}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                setComplaints(prev => prev.filter(c => c._id !== id));
+            } else {
+                alert('Failed to delete complaint');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error deleting complaint');
+        }
+    };
 
 
     useEffect(() => {
@@ -31,12 +50,14 @@ export default function EmployeeDashboard() {
                 const baseQuery = `?organizationId=${orgId || ''}`;
                 const annQuery = `${baseQuery}${isRestricted && deptId ? `&departmentId=${deptId}` : ''}`;
                 const holQuery = baseQuery; // Holidays are always org-wide in our inheritance model
+                const compQuery = `${baseQuery}${storedId ? `&employeeId=${storedId}` : ''}`;
 
-                const [resAnn, resHol] = await Promise.all([
+                const [resAnn, resHol, resComp] = await Promise.all([
                     fetch(`/api/resource/announcement${annQuery}`),
-                    fetch(`/api/resource/holiday${holQuery}`)
+                    fetch(`/api/resource/holiday${holQuery}`),
+                    fetch(`/api/resource/complaint${compQuery}`)
                 ]);
-                const [jsonAnn, jsonHol] = await Promise.all([resAnn.json(), resHol.json()]);
+                const [jsonAnn, jsonHol, jsonComp] = await Promise.all([resAnn.json(), resHol.json(), resComp.json()]);
 
                 // Filter announcements by date
                 const now = new Date();
@@ -50,6 +71,7 @@ export default function EmployeeDashboard() {
 
                 setAnnouncements(validAnnouncements);
                 setHolidays(jsonHol.data || []);
+                setComplaints(jsonComp.data || []);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -161,7 +183,7 @@ export default function EmployeeDashboard() {
                             </div>
                         </button>
                         <button
-                            onClick={() => window.location.href = '/complaint/new'}
+                            onClick={() => window.location.href = '/complaint/new?redirect=/employee-dashboard'}
                             className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-4 hover:bg-red-100 transition-colors text-left group col-span-1 sm:col-span-2"
                         >
                             <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center text-white group-hover:scale-110 transition-transform">
@@ -230,7 +252,47 @@ export default function EmployeeDashboard() {
                         </div>
                     </section>
                 </div>
-            </div >
+                {/* Complaints Section */}
+                <div className="bg-white rounded-xl border border-[#d1d8dd] shadow-sm overflow-hidden text-left">
+                    <div className="p-4 border-b border-[#f0f4f7] bg-[#f9fafb] flex items-center gap-2">
+                        <Megaphone size={18} className="text-red-600" />
+                        <h2 className="text-[15px] font-bold">My Recent Complaints</h2>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        {loading ? (
+                            <div className="space-y-4">
+                                <div className="h-10 bg-gray-50 rounded"></div>
+                            </div>
+                        ) : complaints.length === 0 ? (
+                            <p className="text-gray-400 italic text-center text-[12px]">No complaints filed.</p>
+                        ) : (
+                            complaints.slice(0, 3).map((comp, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                    <div>
+                                        <p className="text-[13px] font-bold text-[#1d2129]">{comp.subject}</p>
+                                        <p className="text-[11px] text-gray-500">{new Date(comp.date || comp.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${comp.status === 'Resolved' ? 'bg-green-100 text-green-700' :
+                                        comp.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                            comp.status === 'Dismissed' ? 'bg-gray-100 text-gray-600' :
+                                                'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                        {comp.status}
+                                    </span>
+                                    <button
+                                        onClick={() => handleDeleteComplaint(comp._id)}
+                                        className="ml-2 text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded"
+                                        title="Delete Complaint"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+            </div>
         </div >
     );
 }

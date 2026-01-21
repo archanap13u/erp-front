@@ -213,6 +213,7 @@ export default function OrganizationDetailsPage() {
                                     {organization.isActive ? 'Active' : 'Inactive'}
                                 </span>
                             </div>
+                            {/* TEMPORARILY DISABLED: User Limit display
                             <div>
                                 <p className="text-sm text-gray-500 mb-1">User Limit</p>
                                 <div className="flex items-center space-x-2">
@@ -220,6 +221,7 @@ export default function OrganizationDetailsPage() {
                                     <span className="text-xs text-gray-500">users used</span>
                                 </div>
                             </div>
+                            */}
                         </div>
                     </div>
                 </div>

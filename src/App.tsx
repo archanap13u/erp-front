@@ -92,6 +92,10 @@ import AssetTrackingPage from './pages/features/AssetTrackingPage';
 import MaintenancePage from './pages/features/MaintenancePage';
 import DepreciationPage from './pages/features/DepreciationPage';
 
+// LMS Pages
+import ExamPage from './pages/lms/ExamPage';
+import ResultPage from './pages/lms/ResultPage';
+
 // Placeholder for other pages - to be implemented
 const Placeholder = ({ title }: { title: string }) => (
     <div className="p-8">
@@ -99,6 +103,8 @@ const Placeholder = ({ title }: { title: string }) => (
         <p className="text-gray-600">This page is currently under migration.</p>
     </div>
 );
+
+import FinanceStudentPage from './pages/FinanceStudentPage';
 
 function App() {
     return (
@@ -108,6 +114,7 @@ function App() {
                     <Route path="/" element={<Navigate to="/login" replace />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/department-login" element={<Login />} />
+                    <Route path="/finance-students" element={<FinanceStudentPage />} />
 
                     {/* Super Admin Routes */}
                     <Route path="/superadmin" element={<SuperAdminLayout />}>
@@ -183,7 +190,12 @@ function App() {
                         <Route path="/program/:id/edit" element={<GenericEdit doctype="program" />} />
                         <Route path="/internalmark" element={<InternalMarksPage />} />
                         <Route path="/internalmark/new" element={<GenericNew doctype="internalmark" />} />
+                        <Route path="/internalmark/new" element={<GenericNew doctype="internalmark" />} />
                         <Route path="/internalmark/:id/edit" element={<GenericEdit doctype="internalmark" />} />
+
+                        {/* LMS Routes */}
+                        <Route path="/student/exams" element={<ExamPage />} />
+                        <Route path="/student/results" element={<ResultPage />} />
 
                         {/* Inventory Module */}
                         <Route path="/stockentry" element={<StockEntryPage />} />

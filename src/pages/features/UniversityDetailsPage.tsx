@@ -13,7 +13,8 @@ export default function UniversityDetailsPage() {
     useEffect(() => {
         async function fetchUniversity() {
             try {
-                const res = await fetch(`/api/resource/university/${id}`);
+                const orgId = localStorage.getItem('organization_id');
+                const res = await fetch(`/api/resource/university/${id}?organizationId=${orgId || ''}`);
                 const json = await res.json();
                 if (json.data) {
                     setUniversity(json.data);

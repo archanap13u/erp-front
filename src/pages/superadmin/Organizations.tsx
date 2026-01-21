@@ -142,7 +142,7 @@ export default function OrganizationsPage() {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Organization</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Credentials</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Plan</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Seats</th>
+                                    {/* TEMPORARILY DISABLED: <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Seats</th> */}
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                                 </tr>
@@ -167,7 +167,7 @@ export default function OrganizationsPage() {
                                                 {org.subscription?.plan || 'free'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm">{org.stats?.totalUsers || 0} / {org.subscription?.maxUsers || 10}</td>
+                                        {/* TEMPORARILY DISABLED: <td className="px-6 py-4 text-sm">{org.stats?.totalUsers || 0} / {org.subscription?.maxUsers || 10}</td> */}
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${org.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                                 {org.isActive ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}

@@ -240,6 +240,7 @@ export default function CenterDashboard() {
         { label: 'Register STUDENT', href: '/student/new' },
         { label: 'Start STUDENT', href: '/studentapplicant/new' },
         { label: 'Submit Marks', href: `/internalmark/new?studyCenter=${encodeURIComponent(centerName || '')}` },
+
     ];
 
     const ApplicationBucket = ({ title, count, status, icon: Icon, color }: any) => (

@@ -93,7 +93,13 @@ export default function OpsDashboard() {
                 // Store all students
                 const allStds = jsonStd.data || [];
                 setAllStudents(allStds);
-                setPendingStudents(allStds.filter((s: any) => s.verificationStatus === 'Processing' || s.verificationStatus === 'Pending'));
+                setAllStudents(allStds);
+                // Filter for students needing Ops verification (Pending or Processing)
+                const pendingOps = allStds.filter((s: any) =>
+                    s.verificationStatus === 'Processing' ||
+                    s.verificationStatus === 'Pending'
+                );
+                setPendingStudents(pendingOps);
                 setCenterStudentsCount(allStds.filter((s: any) => s.studyCenter).length);
             } catch (e) {
                 console.error('[OpsDashboard] Error:', e);
@@ -142,6 +148,62 @@ export default function OpsDashboard() {
             />
 
             <div className="max-w-6xl mx-auto space-y-8">
+                {/* Pending Ops Verifications (New Section) */}
+                <div className="bg-white rounded-xl border border-[#d1d8dd] shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-[#d1d8dd] bg-rose-50/50 flex items-center justify-between">
+                        <h3 className="text-[16px] font-bold text-[#1d2129] flex items-center gap-2">
+                            <UserPlus size={18} className="text-rose-600" />
+                            Pending Student Verifications
+                        </h3>
+                        <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            {pendingStudents.length} PENDING
+                        </span>
+                    </div>
+                    <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+                        {pendingStudents.length === 0 ? (
+                            <div className="p-8 text-center text-gray-400 italic text-[13px]">No students awaiting verification.</div>
+                        ) : (
+                            pendingStudents.map((student, idx) => (
+                                <div key={idx} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-rose-50 text-rose-600 rounded">
+                                            <Users size={16} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[13px] font-bold text-[#1d2129]">{student.studentName}</p>
+                                            <div className="flex items-center gap-2 text-[11px] text-gray-500 font-medium">
+                                                <span>{student.studyCenter || 'Unknown Center'}</span>
+                                                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                <span>{student.program || 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Link to={`/student/${student._id}`} className="p-1.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all border border-transparent hover:border-blue-100" title="View Details">
+                                            <ExternalLink size={14} />
+                                        </Link>
+                                        <button
+                                            onClick={async () => {
+                                                if (!confirm(`Verify student ${student.studentName}? This will send them to Finance approval.`)) return;
+                                                try {
+                                                    const res = await fetch(`/api/resource/student/${student._id}?organizationId=${localStorage.getItem('organization_id')}`, {
+                                                        method: 'PUT',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ verificationStatus: 'Verified by Ops' })
+                                                    });
+                                                    if (res.ok) window.location.reload();
+                                                } catch (e) { console.error(e); }
+                                            }}
+                                            className="bg-blue-600 text-white px-3 py-1 rounded text-[11px] font-bold hover:bg-blue-700 shadow-sm"
+                                        >
+                                            Verify & Forward
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
                 {/* Recent Announcements Feed */}
                 <div className="bg-white p-6 rounded-2xl border border-[#d1d8dd] shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between mb-6">
@@ -479,7 +541,7 @@ export default function OpsDashboard() {
                                                     <Building2 size={10} /> {displayCenterName}
                                                 </span>
                                             )}
-                                            <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${student.verificationStatus === 'Approved by Accounts' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                            <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${student.verificationStatus === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                                                 student.verificationStatus === 'Verified by Ops' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
                                                     'bg-amber-50 text-amber-600 border border-amber-100'
                                                 }`}>

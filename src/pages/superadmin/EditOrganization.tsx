@@ -152,10 +152,12 @@ export default function EditOrganizationPage() {
                                     <option value="enterprise">Enterprise</option>
                                 </select>
                             </div>
+                            {/* TEMPORARILY DISABLED: Max Users field
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Max Users</label>
                                 <input type="number" value={formData.maxUsers} onChange={(e) => setFormData({ ...formData, maxUsers: parseInt(e.target.value) || 0 })} className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none" />
                             </div>
+                            */}
                         </div>
                     </div>
                     <div className="flex items-center justify-end space-x-4 pt-4">

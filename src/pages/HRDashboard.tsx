@@ -11,6 +11,7 @@ export default function HRDashboard() {
     const [holidays, setHolidays] = useState<any[]>([]);
     const [announcements, setAnnouncements] = useState<any[]>([]);
     const [polls, setPolls] = useState<any[]>([]);
+    const [complaints, setComplaints] = useState<any[]>([]);
     const [employees, setEmployees] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -73,18 +74,20 @@ export default function HRDashboard() {
                     deptParams += `&department=${encodeURIComponent(effectiveDeptName)}`;
                 }
 
-                const [resEmp, resAtt, resHol, resAnn] = await Promise.all([
+                const [resEmp, resAtt, resHol, resAnn, resComp] = await Promise.all([
                     fetch(`${baseUrl}/employee${globalParams}`),
                     fetch(`${baseUrl}/attendance${deptParams}`),
                     fetch(`${baseUrl}/holiday${deptParams}`),
-                    fetch(`${baseUrl}/announcement${deptParams}`)
+                    fetch(`${baseUrl}/announcement${deptParams}`),
+                    fetch(`${baseUrl}/complaint${globalParams}`) // HR sees all complaints in the org (no dept filter)
                 ]);
 
-                const [jsonEmp, jsonAtt, jsonHol, jsonAnn] = await Promise.all([
+                const [jsonEmp, jsonAtt, jsonHol, jsonAnn, jsonComp] = await Promise.all([
                     resEmp.json(),
                     resAtt.json(),
                     resHol.json(),
-                    resAnn.json()
+                    resAnn.json(),
+                    resComp.json()
                 ]);
 
                 setEmployees(jsonEmp.data || []);
@@ -92,10 +95,13 @@ export default function HRDashboard() {
                     employee: jsonEmp.data?.length || 0,
                     attendance: jsonAtt.data?.length || 0,
                     holiday: jsonHol.data?.length || 0,
-                    announcement: jsonAnn.data?.length || 0
+                    announcement: jsonAnn.data?.length || 0,
+                    complaint: jsonComp.data?.length || 0
                 });
 
                 setHolidays(jsonHol.data?.slice(0, 3) || []);
+                console.log('[HR Dashboard] Complaints fetched:', jsonComp);
+                setComplaints(jsonComp.data?.slice(0, 5) || []);
 
                 const allAnnouncements = jsonAnn.data || [];
                 setAnnouncements(allAnnouncements.filter((a: any) => a.type !== 'Poll').slice(0, 3));
@@ -315,6 +321,69 @@ export default function HRDashboard() {
                             ))
                         )}
                     </div>
+                </div>
+            </div>
+
+            {/* Complaints Section - HR can view all complaints from all employees */}
+            <div className="bg-white p-8 rounded-2xl border border-[#d1d8dd] shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-[18px] font-bold text-[#1d2129] flex items-center gap-3">
+                        <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center shadow-sm">
+                            <Megaphone size={20} />
+                        </div>
+                        Employee Complaints
+                        {complaints.length > 0 && (
+                            <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-[11px] font-bold rounded-full">
+                                {complaints.length}
+                            </span>
+                        )}
+                    </h3>
+                    <Link to="/complaint" className="text-blue-600 text-[13px] font-medium hover:underline flex items-center gap-1 bg-blue-50 px-3 py-2 rounded-lg">
+                        View All <ArrowRight size={14} />
+                    </Link>
+                </div>
+                <div className="space-y-4">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                            <div className="animate-pulse space-y-3 w-full">
+                                <div className="h-16 bg-gray-100 rounded-2xl"></div>
+                                <div className="h-16 bg-gray-100 rounded-2xl"></div>
+                            </div>
+                        </div>
+                    ) : complaints.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                            <Megaphone size={32} className="opacity-10 mb-2" />
+                            <p className="italic text-[14px]">No complaints filed yet.</p>
+                        </div>
+                    ) : (
+                        complaints.map((comp, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-4 bg-gray-50/50 hover:bg-white hover:shadow-lg hover:border-red-200 transition-all rounded-2xl border border-transparent">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center font-bold text-[12px]">
+                                        {comp.employeeName?.charAt(0) || 'E'}
+                                    </div>
+                                    <div>
+                                        <h4 className="text-[14px] font-bold text-[#1d2129]">{comp.subject}</h4>
+                                        <p className="text-[12px] text-gray-400">
+                                            By: {comp.employeeName || comp.employeeId || 'Anonymous'} • {new Date(comp.date || comp.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${comp.status === 'Resolved' ? 'bg-green-100 text-green-700' :
+                                        comp.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                            comp.status === 'Dismissed' ? 'bg-gray-100 text-gray-600' :
+                                                'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                        {comp.status}
+                                    </span>
+                                    <Link to={`/complaint/${comp._id}`} className="text-gray-400 hover:text-blue-600 transition-colors">
+                                        <Edit size={14} />
+                                    </Link>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 

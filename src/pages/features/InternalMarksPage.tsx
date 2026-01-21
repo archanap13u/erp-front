@@ -101,19 +101,21 @@ export default function InternalMarksPage() {
                                 />
                             </div>
 
-                            <div className="relative">
-                                <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <select
-                                    value={selectedCenter}
-                                    onChange={e => setSelectedCenter(e.target.value)}
-                                    className="pl-9 pr-8 py-1.5 bg-white border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:border-blue-400 font-medium text-gray-700 appearance-none"
-                                >
-                                    <option value="">All Centers</option>
-                                    {studyCenters.map(c => (
-                                        <option key={c._id} value={c.centerName}>{c.centerName}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {isOps && (
+                                <div className="relative">
+                                    <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <select
+                                        value={selectedCenter}
+                                        onChange={e => setSelectedCenter(e.target.value)}
+                                        className="pl-9 pr-8 py-1.5 bg-white border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:border-blue-400 font-medium text-gray-700 appearance-none"
+                                    >
+                                        <option value="">All Centers</option>
+                                        {studyCenters.map(c => (
+                                            <option key={c._id} value={c.centerName}>{c.centerName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </div>
 
